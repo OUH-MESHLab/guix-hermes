@@ -23,9 +23,9 @@
 ;;;
 ;;; Strategy per package (driven by .upstream/upstream-map.data):
 ;;;   - match     (19): re-export upstream Guix definition
-;;;   - mismatch  (27): inherit upstream, bump version + source
+;;;   - mismatch  (26): inherit upstream, bump version + source
 ;;;   - missing   (10): full from-scratch definition
-;;;   - downgrade (5): re-export upstream despite version drift
+;;;   - downgrade (6): re-export upstream despite version drift
 ;;;                         (documented exception, see scripts/regen-deps.py)
 ;;;
 ;;; Code:
@@ -915,36 +915,10 @@
 (define-public python-pytz
   (@ (gnu packages time) python-pytz))
 
-;; mismatch: want 6.0.3, upstream Guix has 6.0.2
+;; PIN DOWNGRADE: upstream Guix 6.0.2 (closure asks 6.0.3; see PIN_DOWNGRADES)
+;; pure re-export (6.0.2 from (gnu packages python-xyz))
 (define-public python-pyyaml
-  (let ((base (@ (gnu packages python-xyz) python-pyyaml)))
-    (package
-      (inherit base)
-      (version "6.0.3")
-      (source
-       (origin
-         (method url-fetch)
-         (uri "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz")
-         (sha256
-          (base32 "03qrhk1vz2g12xgy9mdr4p3ibvxprch710gq9kxj5pr16hvj6rnp"))))
-      (native-inputs
-       (modify-inputs (package-native-inputs base)
-         (append python-setuptools python-cython)))
-      (propagated-inputs
-       (append
-        ;; Keep non-Python upstream propagated-inputs (libsodium,
-        ;; libffi, …); strip their (label _) pairs so the result
-        ;; is a flat list of packages that Guix can auto-label.
-        (map (lambda (i) (if (pair? i) (cadr i) i))
-             (filter (lambda (i)
-                       (let ((label (if (pair? i) (car i)
-                                        (package-name i))))
-                         (not (string-prefix? "python-" label))))
-                     (package-propagated-inputs base)))
-        '()))
-      (arguments
-       (substitute-keyword-arguments (package-arguments base)
-         ((#:tests? was-tests? #f) #f))))))
+  (@ (gnu packages python-xyz) python-pyyaml))
 
 ;; mismatch: want 7.4.2, upstream Guix has 8.2
 (define-public python-qrcode

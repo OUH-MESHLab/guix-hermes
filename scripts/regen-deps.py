@@ -87,6 +87,11 @@ PIN_DOWNGRADES = {
     # our croniter pins 2025.2.  Accept the downgrade rather than
     # cascade-rewrite icalendar.
     "python-pytz",
+    # python-pyyaml — patch-version diff (6.0.2 vs 6.0.3) with no API
+    # change.  Conflict surfaces when hermes-agent meets workstation
+    # tooling that reaches pyyaml via other paths (rofi-rbw via
+    # configargparse on curie).
+    "python-pyyaml",
 }
 
 
