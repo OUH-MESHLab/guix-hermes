@@ -5,11 +5,18 @@
 ;;; Usage:
 ;;;   guix repl scripts/probe-upstream.scm < /tmp/want.tsv \
 ;;;     > .upstream/upstream-map.data
+;;;
+;;; The define-module header is purely cosmetic — it lets Guix's
+;;; channel-compile step recognise this file as a module rather than
+;;; barfing on the bare (use-modules ...) at top level when scanning
+;;; the channel checkout.  Running the file via `guix repl ...` still
+;;; executes the body at load time, which is the desired behaviour.
 
-(use-modules (gnu packages)
-             (guix packages)
-             (guix utils)
-             (ice-9 rdelim))
+(define-module (scripts probe-upstream)
+  #:use-module (gnu packages)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (ice-9 rdelim))
 
 (define (pypi->guix name)
   (string-append "python-" name))
