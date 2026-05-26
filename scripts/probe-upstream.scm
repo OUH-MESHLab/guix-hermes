@@ -4,7 +4,7 @@
 ;;;
 ;;; Usage:
 ;;;   guix repl scripts/probe-upstream.scm < /tmp/want.tsv \
-;;;     > .upstream/upstream-map.scm
+;;;     > .upstream/upstream-map.data
 
 (use-modules (gnu packages)
              (guix packages)

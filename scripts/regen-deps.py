@@ -38,7 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCKFILE = REPO_ROOT / ".upstream" / "uv.lock"
 LOCKFILE_PYPROJECT = REPO_ROOT / ".upstream" / "pyproject.toml"
 PYPROJECT_CACHE = REPO_ROOT / ".upstream" / "sdist-pyproject"
-UPSTREAM_MAP = REPO_ROOT / ".upstream" / "upstream-map.scm"
+UPSTREAM_MAP = REPO_ROOT / ".upstream" / "upstream-map.data"
 OUTPUT = REPO_ROOT / "guix-hermes" / "packages" / "python-hermes-deps.scm"
 
 # Packages whose upstream Guix recipe is incompatible with our pinned
@@ -453,7 +453,7 @@ def detect_native_inputs(pyproject: dict | None) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# upstream-map — parse .upstream/upstream-map.scm into a Python dict
+# upstream-map — parse .upstream/upstream-map.data into a Python dict
 # ---------------------------------------------------------------------------
 
 
@@ -548,14 +548,14 @@ HEADER_PROLOGUE = """\
 ;;;
 ;;; Regenerate with:
 ;;;   guix repl scripts/probe-upstream.scm < /tmp/want.tsv \\
-;;;     > .upstream/upstream-map.scm
+;;;     > .upstream/upstream-map.data
 ;;;   guix shell python python-packaging curl gzip tar -- \\
 ;;;     python3 scripts/regen-deps.py --extras=messaging
 ;;;
 ;;; Source of truth: .upstream/uv.lock at upstream tag {upstream_ref}.
 ;;; Closure: {n_packages} Python packages (core + extras: {extras}).
 ;;;
-;;; Strategy per package (driven by .upstream/upstream-map.scm):
+;;; Strategy per package (driven by .upstream/upstream-map.data):
 ;;;   - match     ({n_match}): re-export upstream Guix definition
 ;;;   - mismatch  ({n_mismatch}): inherit upstream, bump version + source
 ;;;   - missing   ({n_missing}): full from-scratch definition

@@ -14,14 +14,14 @@
 ;;;
 ;;; Regenerate with:
 ;;;   guix repl scripts/probe-upstream.scm < /tmp/want.tsv \
-;;;     > .upstream/upstream-map.scm
+;;;     > .upstream/upstream-map.data
 ;;;   guix shell python python-packaging curl gzip tar -- \
 ;;;     python3 scripts/regen-deps.py --extras=messaging
 ;;;
 ;;; Source of truth: .upstream/uv.lock at upstream tag v2026.5.16.
 ;;; Closure: 61 Python packages (core + extras: messaging).
 ;;;
-;;; Strategy per package (driven by .upstream/upstream-map.scm):
+;;; Strategy per package (driven by .upstream/upstream-map.data):
 ;;;   - match     (19): re-export upstream Guix definition
 ;;;   - mismatch  (28): inherit upstream, bump version + source
 ;;;   - missing   (10): full from-scratch definition
