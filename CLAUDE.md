@@ -10,12 +10,13 @@ A **Guix package channel** for [Hermes Agent](https://github.com/NousResearch/he
 
 ## Status
 
-**Phase 5 of 6 complete.**  `guix build -L . hermes-agent` produces a
-wrapped binary; `guix home build -L . test-home.scm` (with
-`home-hermes-service-type`) succeeds; `guix system build -L .
-test-system.scm --dry-run` (with `hermes-service-type`) computes
-derivations.  **Do not add this channel to `channels.scm`** until
-Phase 6.
+**All six phases complete.**  The channel is live at
+<https://github.com/OUH-MESHLab/guix-hermes> and wired into
+`~/.dotfiles/channels.scm` + `channels-lock.scm`.  Smoke-tested:
+
+    $ guix time-machine -C channels-lock.scm -- \
+        shell hermes-agent -- hermes --version
+    Hermes Agent v0.14.0 (2026.5.16)
 
 Build classification (58 deps + 1 top-level): 18 re-exports of pristine
 upstream Guix packages, 29 inherit-and-bump overrides, 9 from-scratch
@@ -32,8 +33,8 @@ wheel-fallback (jiter manylinux binary).
 | 2     | `uv.lock` → `(guix-hermes packages python-hermes-deps)` generator; 58-package module             | done     |
 | 3     | Hand-written `(guix-hermes packages hermes)` against the generated deps; `guix build` iteration  | done     |
 | 4     | Runtime wrapper (PATH for nodejs/ripgrep/git/ffmpeg/openssh); bundle `skills/` + `plugins/`      | done     |
-| 5     | `(guix-hermes services hermes)` — system + home service, env-file secrets pattern                | **done** |
-| 6     | Push to `OUH-MESHLab/guix-hermes`, wire into `~/.dotfiles/channels.scm`, deploy on curie         | next     |
+| 5     | `(guix-hermes services hermes)` — system + home service, env-file secrets pattern                | done     |
+| 6     | Push to `OUH-MESHLab/guix-hermes`, wire into `~/.dotfiles/channels.scm`, deploy on curie         | **done** |
 
 ## Scope decisions (locked at planning time)
 
