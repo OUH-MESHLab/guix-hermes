@@ -27,10 +27,22 @@
 ;;; direct dependencies — both core and the `[messaging]` extra — and
 ;;; the build system resolves the rest through propagated-inputs.
 ;;;
-;;; Phase 3 scope: get `guix build hermes-agent` to succeed.  Runtime
-;;; wrapping (PATH for nodejs / ripgrep / ffmpeg / git), bundled
-;;; skills + plugins, and the system / home services live in Phases
-;;; 4 and 5.
+;;; Phase 4 additions on top of Phase 3:
+;;;
+;;;   - install-bundled-assets phase
+;;;       Copies the upstream `skills/`, `plugins/` and `optional-skills/`
+;;;       trees from the source checkout to `<out>/share/hermes-agent/`,
+;;;       filtering out `__pycache__/` and `index-cache/` directories.
+;;;       Mirrors what upstream's Nix flake does in `nix/hermes-agent.nix`.
+;;;
+;;;   - wrap-runtime phase
+;;;       Wraps every entry-point under `<out>/bin/` with:
+;;;         * PATH prefix for nodejs, ripgrep, git, ffmpeg, openssh,
+;;;           wl-clipboard, xclip — every tool Hermes shells out to.
+;;;         * HERMES_BUNDLED_SKILLS, HERMES_BUNDLED_PLUGINS and
+;;;           HERMES_OPTIONAL_SKILLS pointed at the share/ tree.
+;;;       The env-var names match what `hermes_cli/plugins.py` and
+;;;       `tools/skills_sync.py` actually read at runtime.
 ;;;
 ;;; Code:
 
@@ -41,7 +53,15 @@
   #:use-module (guix gexp)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
-  #:use-module (gnu packages python-build))   ; python-setuptools
+  #:use-module (gnu packages bash)            ; bash-minimal (wrap-program)
+  #:use-module (gnu packages freedesktop)     ; wl-clipboard
+  #:use-module (gnu packages node)            ; node
+  #:use-module (gnu packages python-build)    ; python-setuptools
+  #:use-module (gnu packages rust-apps)       ; ripgrep
+  #:use-module (gnu packages ssh)             ; openssh
+  #:use-module (gnu packages version-control) ; git
+  #:use-module (gnu packages video)           ; ffmpeg
+  #:use-module (gnu packages xdisorg))        ; xclip
 
 (define-public hermes-agent
   (package
@@ -61,9 +81,79 @@
      (list
       ;; Tests pull dev-only extras (debugpy, pytest-split, pytest-xdist,
       ;; ty, ruff) that are deliberately out of scope.
-      #:tests? #f))
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-bundled-assets
+            (lambda _
+              ;; Copy skills/, plugins/, optional-skills/ from the source
+              ;; tree to <out>/share/hermes-agent/, filtering out caches.
+              ;; setup.py's data_files declaration drops them outside
+              ;; site-packages, so we install them by hand here.
+              (let ((share (string-append #$output
+                                          "/share/hermes-agent")))
+                (for-each
+                 (lambda (dir)
+                   (when (file-exists? dir)
+                     (copy-recursively
+                      dir
+                      (string-append share "/" dir)
+                      #:select?
+                      (lambda (file stat)
+                        (let ((b (basename file)))
+                          (not (or (string=? b "__pycache__")
+                                   (string=? b "index-cache"))))))))
+                 (list "skills" "plugins" "optional-skills")))))
+          (add-after 'wrap 'wrap-runtime
+            (lambda _
+              ;; Prepend runtime tools to PATH and pin HERMES_BUNDLED_*
+              ;; to the share/ tree.  Hermes shells out to node (LSP +
+              ;; browser-automation glue), ripgrep (search), git
+              ;; (repo introspection), ffmpeg (audio/voice memos),
+              ;; openssh (remote terminal backends).  Clipboard tools
+              ;; let `hermes` paste into the TUI on Wayland / X11.
+              (let* ((out      #$output)
+                     (bin      (string-append out "/bin"))
+                     (share    (string-append out "/share/hermes-agent"))
+                     (tool-bin (lambda (p)
+                                 (string-append p "/bin")))
+                     (path
+                      (string-join
+                       (list (tool-bin #$(this-package-input "node"))
+                             (tool-bin #$(this-package-input "ripgrep"))
+                             (tool-bin #$(this-package-input "git"))
+                             (tool-bin #$(this-package-input "ffmpeg"))
+                             (tool-bin #$(this-package-input "openssh"))
+                             (tool-bin #$(this-package-input "wl-clipboard"))
+                             (tool-bin #$(this-package-input "xclip")))
+                       ":")))
+                (for-each
+                 (lambda (prog)
+                   (when (file-exists? prog)
+                     (wrap-program prog
+                       `("PATH" ":" prefix (,path))
+                       `("HERMES_BUNDLED_SKILLS" =
+                         (,(string-append share "/skills")))
+                       `("HERMES_BUNDLED_PLUGINS" =
+                         (,(string-append share "/plugins")))
+                       `("HERMES_OPTIONAL_SKILLS" =
+                         (,(string-append share "/optional-skills"))))))
+                 (list (string-append bin "/hermes")
+                       (string-append bin "/hermes-agent")
+                       (string-append bin "/hermes-acp")))))))))
     (native-inputs
      (list python-setuptools))
+    (inputs
+     ;; Runtime dependencies that `hermes` invokes as subprocesses or
+     ;; whose bin/ goes on PATH via the wrap-runtime phase.
+     (list bash-minimal              ; wrap-program needs sh
+           node                      ; v22.16 on current Guix; engines.node >= 20
+           ripgrep
+           git
+           ffmpeg
+           openssh
+           wl-clipboard
+           xclip))
     (propagated-inputs
      ;; Order mirrors upstream pyproject.toml [project.dependencies] +
      ;; [project.optional-dependencies.messaging].  Win32-only tzdata
@@ -75,7 +165,7 @@
       python-fire
       python-httpx           ; pyproject pins httpx[socks]; socks support
                              ; needs python-socksio at runtime (transitive,
-                             ;  pulled via python-hermes-deps if listed).
+                             ; pulled via python-hermes-deps if listed).
       python-jinja2
       python-openai
       python-prompt-toolkit

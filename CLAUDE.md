@@ -10,10 +10,12 @@ A **Guix package channel** for [Hermes Agent](https://github.com/NousResearch/he
 
 ## Status
 
-**Phase 3 of 6 complete.**  `guix build -L . hermes-agent` succeeds.
-`hermes --help` from the resulting profile prints the full command
-palette.  Nothing wraps the binary with runtime tools yet (Phase 4).
-**Do not add this channel to `channels.scm`** until Phase 6.
+**Phase 4 of 6 complete.**  `guix build -L . hermes-agent` produces a
+wrapped binary with PATH for `node ripgrep git ffmpeg openssh
+wl-clipboard xclip` and `HERMES_BUNDLED_{SKILLS,PLUGINS,OPTIONAL_SKILLS}`
+pointing at `<out>/share/hermes-agent/`.  `hermes doctor` reports green
+across required Python packages.  **Do not add this channel to
+`channels.scm`** until Phase 6.
 
 Build classification (58 deps + 1 top-level): 18 re-exports of pristine
 upstream Guix packages, 29 inherit-and-bump overrides, 9 from-scratch
@@ -28,9 +30,9 @@ wheel-fallback (jiter manylinux binary).
 |-------|--------------------------------------------------------------------------------------------------|----------|
 | 1     | Channel scaffold (`.guix-channel`, `packages/`, `services/`, README, CLAUDE.md, git init)        | done     |
 | 2     | `uv.lock` → `(guix-hermes packages python-hermes-deps)` generator; 58-package module             | done     |
-| 3     | Hand-written `(guix-hermes packages hermes)` against the generated deps; `guix build` iteration  | **done** |
-| 4     | Runtime wrapper (PATH for nodejs/ripgrep/git/ffmpeg/openssh); bundle `skills/` + `plugins/`      | next     |
-| 5     | `(guix-hermes services hermes)` — system + home service, env-file secrets pattern                | —        |
+| 3     | Hand-written `(guix-hermes packages hermes)` against the generated deps; `guix build` iteration  | done     |
+| 4     | Runtime wrapper (PATH for nodejs/ripgrep/git/ffmpeg/openssh); bundle `skills/` + `plugins/`      | **done** |
+| 5     | `(guix-hermes services hermes)` — system + home service, env-file secrets pattern                | next     |
 | 6     | Push to `OUH-MESHLab/guix-hermes`, wire into `~/.dotfiles/channels.scm`, deploy on curie         | —        |
 
 ## Scope decisions (locked at planning time)
