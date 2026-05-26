@@ -1,0 +1,60 @@
+(define upstream-map '(
+  ("python-aiohappyeyeballs" match "2.6.1" (gnu packages python-web))
+  ("python-aiohttp" mismatch "3.11.18" (gnu packages python-web)) ; want 3.13.4
+  ("python-aiosignal" match "1.4.0" (gnu packages python-web))
+  ("python-annotated-types" match "0.7.0" (gnu packages python-xyz))
+  ("python-anyio" match "4.12.1" (gnu packages python-xyz))
+  ("python-attrs" mismatch "25.3.0" (gnu packages python-xyz)) ; want 25.4.0
+  ("python-brotlicffi" mismatch "1.1.0.0" (gnu packages python-compression)) ; want 1.2.0.1
+  ("python-certifi" mismatch "2025.06.15" (gnu packages python-crypto)) ; want 2026.2.25
+  ("python-cffi" mismatch "1.17.1" (gnu packages libffi)) ; want 2.0.0
+  ("python-charset-normalizer" mismatch "3.4.2" (gnu packages python-xyz)) ; want 3.4.4
+  ("python-croniter" mismatch "5.0.1" (gnu packages python-xyz)) ; want 6.0.0
+  ("python-cryptography" mismatch "44.0.0" (gnu packages python-crypto)) ; want 46.0.7
+  ("python-discord-py" missing "2.7.1" #f)
+  ("python-distro" match "1.9.0" (gnu packages python-xyz))
+  ("python-fire" mismatch "0.7.0" (gnu packages python-xyz)) ; want 0.7.1
+  ("python-frozenlist" match "1.8.0" (gnu packages python-web))
+  ("python-h11" match "0.16.0" (gnu packages python-web))
+  ("python-httpcore" match "1.0.9" (gnu packages python-web))
+  ("python-httpx" match "0.28.1" (gnu packages python-web))
+  ("python-idna" mismatch "3.10" (gnu packages python-xyz)) ; want 3.11
+  ("python-jinja2" mismatch "3.1.2" (gnu packages python-xyz)) ; want 3.1.6
+  ("python-jiter" missing "0.13.0" #f)
+  ("python-markdown-it-py" mismatch "3.0.0" (gnu packages python-xyz)) ; want 4.0.0
+  ("python-markupsafe" match "3.0.3" (gnu packages python-xyz))
+  ("python-mdurl" match "0.1.2" (gnu packages python-xyz))
+  ("python-multidict" mismatch "6.7.0" (gnu packages python-xyz)) ; want 6.7.1
+  ("python-openai" mismatch "1.3.5" (gnu packages python-web)) ; want 2.24.0
+  ("python-prompt-toolkit" mismatch "3.0.51" (gnu packages python-xyz)) ; want 3.0.52
+  ("python-propcache" mismatch "0.2.1" (gnu packages python-xyz)) ; want 0.4.1
+  ("python-psutil" mismatch "7.0.0" (gnu packages python-xyz)) ; want 7.2.2
+  ("python-pycparser" mismatch "2.22" (gnu packages python-xyz)) ; want 3.0
+  ("python-pydantic" match "2.12.5" (gnu packages python-xyz))
+  ("python-pydantic-core" match "2.41.5" (gnu packages python-xyz))
+  ("python-pygments" mismatch "2.19.1" (gnu packages python-build)) ; want 2.19.2
+  ("python-pyjwt" mismatch "2.10.1" (gnu packages python-xyz)) ; want 2.12.1
+  ("python-pypng" match "0.20220715.0" (gnu packages python-xyz))
+  ("python-python-dateutil" missing "2.9.0.post0" #f)
+  ("python-python-dotenv" missing "1.2.1" #f)
+  ("python-python-telegram-bot" missing "22.6" #f)
+  ("python-pytz" mismatch "2025.1" (gnu packages time)) ; want 2025.2
+  ("python-pyyaml" mismatch "6.0.2" (gnu packages python-xyz)) ; want 6.0.3
+  ("python-qrcode" mismatch "8.2" (gnu packages python-xyz)) ; want 7.4.2
+  ("python-requests" mismatch "2.32.5" (gnu packages python-web)) ; want 2.33.0
+  ("python-rich" mismatch "14.2.0" (gnu packages python-xyz)) ; want 14.3.3
+  ("python-ruamel-yaml" missing "0.18.17" #f)
+  ("python-ruamel-yaml-clib" missing "0.2.15" #f)
+  ("python-six" match "1.17.0" (gnu packages python-build))
+  ("python-slack-bolt" missing "1.27.0" #f)
+  ("python-slack-sdk" missing "3.40.1" #f)
+  ("python-sniffio" match "1.3.1" (gnu packages python-xyz))
+  ("python-tenacity" mismatch "9.0.0" (gnu packages python-xyz)) ; want 9.1.4
+  ("python-termcolor" mismatch "2.5.0" (gnu packages python-xyz)) ; want 3.3.0
+  ("python-tqdm" mismatch "4.67.1" (gnu packages python-xyz)) ; want 4.67.3
+  ("python-typing-extensions" match "4.15.0" (gnu packages python-build))
+  ("python-typing-inspection" match "0.4.2" (gnu packages python-xyz))
+  ("python-urllib3" mismatch "2.5.0" (gnu packages python-web)) ; want 2.6.3
+  ("python-wcwidth" mismatch "0.2.13" (gnu packages python-xyz)) ; want 0.6.0
+  ("python-yarl" mismatch "1.18.3" (gnu packages python-web)) ; want 1.22.0
+))
