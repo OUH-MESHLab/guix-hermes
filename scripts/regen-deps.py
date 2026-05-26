@@ -45,10 +45,79 @@ OUTPUT = REPO_ROOT / "guix-hermes" / "packages" / "python-hermes-deps.scm"
 # version (typically: major build-system change).  Treat as "missing"
 # even though `guix show` finds an older copy — we synthesise from
 # scratch so the build-backend probe picks up the right native-inputs.
-FORCE_MISSING = {
-    # cryptography 46.x switched from setuptools-rust → maturin.  The
-    # upstream Guix 44.x recipe (setuptools-rust) is incompatible.
+FORCE_MISSING: set[str] = set()
+
+
+# Documented exceptions to exact-pin policy: packages where building
+# our pinned upstream version requires effort disproportionate to the
+# functional gain (typically a fresh Rust crate vendoring tree, an
+# upstream CMake-build-system change, etc.) and where the upstream Guix
+# version satisfies every reverse-dependency constraint in our closure.
+#
+# When a package is in PIN_DOWNGRADES, we treat it as a "match" against
+# upstream Guix regardless of version — i.e. re-export upstream as-is.
+PIN_DOWNGRADES = {
+    # cryptography 46.x switched setuptools-rust → maturin AND brought
+    # in a fresh Rust crate dependency tree that would need hermetic
+    # vendoring to build under Guix.  Closure analysis: only pyjwt[crypto]
+    # needs it, and pyjwt 2.12.1 only requires cryptography>=3.4.0 —
+    # Guix's 44.0.0 satisfies.  Accept the downgrade.
     "python-cryptography",
+    # pycparser is a low-level transitive dep of cffi (no API surface
+    # exposed to hermes-agent itself).  Bumping 2.22 → 3.0 breaks
+    # upstream Guix's install-doc phase (CHANGES → CHANGELOG.md rename).
+    # Not worth a snippet workaround.
+    "python-pycparser",
+}
+
+
+# Per-package source snippets — applied to the (origin) of a "missing"
+# package when its upstream pyproject.toml needs surgery to build with
+# the build-tooling versions Guix currently ships.  Keyed by Guix name.
+# Each value is a list of (substitute* spec) entries that will be
+# rendered as a snippet running inside the source tree.
+# Per-package native-inputs override — when the auto-detected set
+# isn't enough, replace the entire (native-inputs (list ...)) form
+# with this verbatim Scheme string.  Keyed by Guix name.
+NATIVE_INPUTS_OVERRIDES: dict[str, str] = {
+    "python-cryptography":
+        # maturin + Rust toolchain (cargo lives in the "cargo" output of `rust`).
+        "(list maturin python-cffi rust `(,rust \"cargo\"))",
+}
+
+
+# Per-package wheel fallback — use the binary wheel from PyPI instead
+# of building from sdist.  Use sparingly: only when source-building
+# would require hermetic Rust crate vendoring or a similar undertaking
+# we deliberately defer.  Keyed by Guix name.
+WHEEL_FALLBACK = {
+    # jiter is a Rust extension (PyO3); sdist requires hermetic cargo
+    # crate vendoring which is days of work for marginal benefit.
+    # The manylinux wheel is glibc 2.17 ABI-compatible with Guix.
+    "python-jiter",
+}
+
+
+# Per-package: skip the Guix sanity-check phase.  Use when a package's
+# entry-points require optional extras (e.g. python-dotenv's `dotenv`
+# CLI needs the [cli] extra which pulls click — out of our closure).
+SKIP_SANITY_CHECK: set[str] = {
+    "python-python-dotenv",
+}
+
+
+SOURCE_SNIPPETS: dict[str, list[str]] = {
+    "python-cryptography": [
+        # 1) Drop PEP 639 license-files array — maturin 1.8.1 in Guix
+        #    can't parse it; maturin 1.9+ adds that support.
+        # 2) Relax maturin version pin from 1.9.4 → 1.8 so we can build
+        #    with Guix's maturin.  Cryptography 46.0.7's actual maturin
+        #    API surface is compatible with 1.8.x; the >=1.9.4 pin is
+        #    forward-looking (CI tests against newer maturin features).
+        '(substitute* "pyproject.toml"'
+        '\n               (("^license-files = .*") "")'
+        '\n               (("\\"maturin>=1\\\\.9\\\\.4,<2\\"") "\\"maturin>=1.8,<2\\""))',
+    ],
 }
 
 # Map of upstream `[build-system].build-backend` strings to the
@@ -361,15 +430,28 @@ def module_to_scheme(module: tuple) -> str:
     return "(" + " ".join(module) + ")"
 
 
-def pick_source(pkg: dict) -> tuple[str, str, str]:
+def pick_source(pkg: dict, prefer_wheel: bool = False) -> tuple[str, str, str]:
     """Return (url, sha256_hex, kind) where kind is 'sdist' or 'wheel'.
 
-    Raises if no acceptable source exists.
+    With prefer_wheel=True we look for a Linux cp311 manylinux wheel
+    first — used for Rust-extension packages we don't want to source-
+    build.  Falls back to sdist if no suitable wheel is found.
     """
     sdist = pkg.get("sdist")
+    wheels = pkg.get("wheels", [])
+
+    if prefer_wheel:
+        # Prefer manylinux cp311 x86_64 wheels.
+        for w in wheels:
+            url = w["url"]
+            if ("cp311-cp311-manylinux" in url
+                    and ("x86_64" in url or "amd64" in url)):
+                return url, w["hash"].removeprefix("sha256:"), "wheel"
+        # Fall through to sdist if no matching wheel.
+
     if sdist:
         return sdist["url"], sdist["hash"].removeprefix("sha256:"), "sdist"
-    wheels = pkg.get("wheels", [])
+
     if not wheels:
         raise RuntimeError(f"{pkg['name']}: no sdist and no wheels")
     # Pick a py3-none-any wheel if available (purelib), else the first one.
@@ -410,9 +492,11 @@ HEADER_PROLOGUE = """\
 ;;; Closure: {n_packages} Python packages (core + extras: {extras}).
 ;;;
 ;;; Strategy per package (driven by .upstream/upstream-map.scm):
-;;;   - match    ({n_match}): re-export upstream Guix definition
-;;;   - mismatch ({n_mismatch}): inherit upstream, bump version + source
-;;;   - missing  ({n_missing}): full from-scratch definition
+;;;   - match     ({n_match}): re-export upstream Guix definition
+;;;   - mismatch  ({n_mismatch}): inherit upstream, bump version + source
+;;;   - missing   ({n_missing}): full from-scratch definition
+;;;   - downgrade ({n_downgrade}): re-export upstream despite version drift
+;;;                         (documented exception, see scripts/regen-deps.py)
 ;;;
 ;;; Code:
 
@@ -430,7 +514,8 @@ HEADER_PROLOGUE = """\
   ;; propcache, aiohttp, ruamel-yaml-clib).
   #:use-module (gnu packages commencement)
   ;; Rust toolchain for maturin-built packages (cryptography 46+).
-  #:use-module (gnu packages rust-apps)
+  #:use-module (gnu packages rust-apps)  ; maturin
+  #:use-module (gnu packages rust)       ; rust (rustc + cargo output)
 {extra_use_modules})
 """
 
@@ -448,16 +533,47 @@ def emit_match(gname: str, upstream: dict) -> str:
 def emit_mismatch(gname: str, pkg: dict, upstream: dict) -> str:
     """Inherit upstream's build recipe, bump version + source to our pin.
 
-    Also disables the test suite — upstream tests are pinned to upstream's
-    version; new tests in our bumped version may need network, fixtures or
-    deps we don't ship.  We trust the inherited build recipe and rely on
-    Phase 4 (the integration smoke test of `hermes-agent` itself) to catch
-    real regressions."""
+    Also disables the test suite (upstream's tests target the older
+    version) and *appends* any new build-backend deps detected from the
+    new version's pyproject.toml — packages frequently change backend
+    between minor releases (e.g. jinja2 3.1.2 → 3.1.6 was setuptools →
+    flit-core), and a bare inherit would lose those.
+    """
+    name = pkg["name"]
     version = pkg["version"]
     url, sha_hex, kind = pick_source(pkg)
     sha_b32 = hex_to_nix_base32(sha_hex)
     mod = module_to_scheme(upstream["module"])
     note = "" if kind == "sdist" else "      ;; XXX wheel only — no sdist on PyPI\n"
+
+    pyproject = fetch_pyproject(name, version, url) if kind == "sdist" else None
+    native = detect_native_inputs(pyproject)
+    if native:
+        native_block = (
+            f"      (native-inputs\n"
+            f"       (modify-inputs (package-native-inputs base)\n"
+            f"         (append " + " ".join(native) + ")))\n"
+        )
+    else:
+        native_block = ""
+
+    # propagated-inputs: replace with the resolved set from uv.lock —
+    # upstream Guix's set targets the older version and may miss new
+    # runtime deps (e.g. openai 1.3.5 didn't need jiter; 2.24 does).
+    prop_names: list[str] = []
+    for d in pkg.get("dependencies", []):
+        if not eval_marker(d.get("marker", "")):
+            continue
+        prop_names.append(guix_name(d["name"]))
+    prop_names = sorted(set(prop_names))
+    if prop_names:
+        prop_block = (
+            f"      (propagated-inputs\n"
+            f"       (list " + " ".join(prop_names) + "))\n"
+        )
+    else:
+        prop_block = ""
+
     return (
         f";; mismatch: want {version}, upstream Guix has {upstream['version']}\n"
         f"(define-public {gname}\n"
@@ -472,6 +588,8 @@ def emit_mismatch(gname: str, pkg: dict, upstream: dict) -> str:
         f"{note}"
         f"         (sha256\n"
         f"          (base32 \"{sha_b32}\"))))\n"
+        f"{native_block}"
+        f"{prop_block}"
         f"      (arguments\n"
         f"       (substitute-keyword-arguments (package-arguments base)\n"
         f"         ((#:tests? was-tests? #f) #f))))))\n"
@@ -481,7 +599,7 @@ def emit_mismatch(gname: str, pkg: dict, upstream: dict) -> str:
 def emit_missing(name: str, gname: str, pkg: dict) -> str:
     """Full from-scratch definition — package isn't in upstream Guix."""
     version = pkg["version"]
-    url, sha_hex, kind = pick_source(pkg)
+    url, sha_hex, kind = pick_source(pkg, prefer_wheel=(gname in WHEEL_FALLBACK))
     sha_b32 = hex_to_nix_base32(sha_hex)
 
     prop_names: list[str] = []
@@ -495,16 +613,45 @@ def emit_missing(name: str, gname: str, pkg: dict) -> str:
         "     (list " + " ".join(prop_names) + "))\n"
     ) if prop_names else ""
 
-    pyproject = fetch_pyproject(name, version, url) if kind == "sdist" else None
-    native = detect_native_inputs(pyproject)
-    native_block = (
-        "    (native-inputs\n"
-        "     (list " + " ".join(native) + "))\n"
-    ) if native else ""
+    pyproject = (fetch_pyproject(name, version, url)
+                 if kind == "sdist" and gname not in WHEEL_FALLBACK
+                 else None)
+    if gname in NATIVE_INPUTS_OVERRIDES:
+        native_block = (
+            "    (native-inputs\n"
+            "     " + NATIVE_INPUTS_OVERRIDES[gname] + ")\n"
+        )
+    elif gname in WHEEL_FALLBACK:
+        # Pre-built wheel — no build deps needed.
+        native_block = ""
+    else:
+        native = detect_native_inputs(pyproject)
+        native_block = (
+            "    (native-inputs\n"
+            "     (list " + " ".join(native) + "))\n"
+        ) if native else ""
 
     backend = (pyproject or {}).get("build-system", {}).get(
         "build-backend", "setuptools.build_meta")
-    if backend == "pep517_backend.hooks":
+    if gname in WHEEL_FALLBACK:
+        # Pre-built wheel — skip unpack/build, just stage the .whl in dist/
+        # and let the standard install phase install from it.  RUNPATH
+        # validation is also skipped (wheels carry their own RPATHs).
+        args_block = (
+            "    (arguments\n"
+            "     (list\n"
+            "      #:tests? #f\n"
+            "      #:phases\n"
+            "      #~(modify-phases %standard-phases\n"
+            "          (replace 'unpack\n"
+            "            (lambda* (#:key source #:allow-other-keys)\n"
+            "              (mkdir-p \"dist\")\n"
+            "              (copy-file source\n"
+            "                         (string-append \"dist/\" (basename source)))))\n"
+            "          (delete 'build)\n"
+            "          (delete 'validate-runpath))))\n"
+        )
+    elif backend == "pep517_backend.hooks":
         args_block = (
             "    (arguments\n"
             "     (list\n"
@@ -519,10 +666,39 @@ def emit_missing(name: str, gname: str, pkg: dict) -> str:
             "                                           (basename whl))))\n"
             "                        (find-files \"dist\" \"\\\\.whl$\")))))))\n"
         )
+    elif gname in SKIP_SANITY_CHECK:
+        args_block = (
+            "    (arguments\n"
+            "     (list\n"
+            "      #:tests? #f\n"
+            "      #:phases\n"
+            "      #~(modify-phases %standard-phases\n"
+            "          (delete 'sanity-check))))\n"
+        )
     else:
         args_block = "    (arguments (list #:tests? #f))\n"
 
-    note = "" if kind == "sdist" else "    ;; XXX wheel only — no sdist on PyPI\n"
+    if kind == "sdist":
+        note = ""
+    elif gname in WHEEL_FALLBACK:
+        note = ("    ;; binary wheel (Rust extension) — see WHEEL_FALLBACK in "
+                "scripts/regen-deps.py\n")
+    else:
+        note = "    ;; XXX wheel only — no sdist on PyPI\n"
+
+    # Optional source snippet for packages whose pyproject.toml needs
+    # surgery to build against the build-tooling versions Guix ships.
+    snippets = SOURCE_SNIPPETS.get(gname, [])
+    if snippets:
+        snippet_block = (
+            "       (modules '((guix build utils)))\n"
+            "       (snippet\n"
+            "        #~(begin\n"
+            + "".join(f"           {s}\n" for s in snippets)
+            + "           #t))\n"
+        )
+    else:
+        snippet_block = ""
 
     return (
         f";; missing from upstream Guix — full hand-defined package\n"
@@ -536,7 +712,9 @@ def emit_missing(name: str, gname: str, pkg: dict) -> str:
         f"       (method url-fetch)\n"
         f"       (uri \"{url}\")\n"
         f"       (sha256\n"
-        f"        (base32 \"{sha_b32}\"))))\n"
+        f"        (base32 \"{sha_b32}\"))\n"
+        f"{snippet_block}"
+        f"       ))\n"
         f"    (build-system pyproject-build-system)\n"
         f"{args_block}"
         f"{native_block}"
@@ -550,6 +728,14 @@ def emit_missing(name: str, gname: str, pkg: dict) -> str:
 
 def emit_package(name: str, pkg: dict, upstream: dict | None) -> str:
     gname = guix_name(name)
+    if gname in PIN_DOWNGRADES and upstream and upstream["status"] != "missing":
+        # Re-export upstream regardless of version drift; documented
+        # exception to exact-pin policy.  See PIN_DOWNGRADES docstring.
+        return (
+            f";; PIN DOWNGRADE: upstream Guix {upstream['version']} "
+            f"(closure asks {pkg['version']}; see PIN_DOWNGRADES)\n"
+            + emit_match(gname, upstream)
+        )
     if gname in FORCE_MISSING:
         return emit_missing(name, gname, pkg)
     if upstream is None or upstream["status"] == "missing":
@@ -585,14 +771,17 @@ def main() -> int:
     # Gather every module we'll need to import.  Anything missing from the
     # upstream map gets treated as "missing" — full hand-defined package.
     modules_used: set[tuple] = set()
-    n_match = n_mismatch = n_missing = 0
+    n_match = n_mismatch = n_missing = n_downgrade = 0
     for name in chosen:
         gname = guix_name(name)
         info = upstream.get(gname)
-        if info and info["status"] == "match":
+        if gname in PIN_DOWNGRADES and info and info["status"] != "missing":
+            n_downgrade += 1
+            modules_used.add(info["module"])
+        elif info and info["status"] == "match":
             n_match += 1
             modules_used.add(info["module"])
-        elif info and info["status"] == "mismatch":
+        elif info and info["status"] == "mismatch" and gname not in FORCE_MISSING:
             n_mismatch += 1
             modules_used.add(info["module"])
         else:
@@ -611,6 +800,7 @@ def main() -> int:
         n_match=n_match,
         n_mismatch=n_mismatch,
         n_missing=n_missing,
+        n_downgrade=n_downgrade,
         extra_use_modules=extra_uses,
     )]
     for name in sorted(chosen):
@@ -620,7 +810,8 @@ def main() -> int:
     OUTPUT.write_text("".join(body))
     print(f"wrote {OUTPUT} "
           f"({len(chosen)} pkgs: {n_match} match, "
-          f"{n_mismatch} mismatch, {n_missing} missing)",
+          f"{n_mismatch} mismatch, {n_missing} missing, "
+          f"{n_downgrade} downgrade)",
           file=sys.stderr)
     return 0
 
