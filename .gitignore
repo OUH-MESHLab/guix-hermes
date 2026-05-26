@@ -1,0 +1,12 @@
+## Editor / IDE
+*~
+\#*\#
+.\#*
+.DS_Store
+
+## Per-user Claude Code settings (not for upstream)
+.claude/settings.local.json
+
+## Guix build artefacts
+result
+result-*
