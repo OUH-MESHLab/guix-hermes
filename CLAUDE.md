@@ -10,20 +10,21 @@ A **Guix package channel** for [Hermes Agent](https://github.com/NousResearch/he
 
 ## Status
 
-**Phase 1 of 6.**  Scaffold only — `.guix-channel`, module skeletons, no
-buildable packages yet.  **Do not add this channel to `channels.scm`** until
-Phase 6.
+**Phase 2 of 6 complete.**  Generated `python-hermes-deps.scm` (58 packages
+covering core + `[messaging]` extras) loads under `guix repl`.  Nothing
+yet attempts `guix build`.  **Do not add this channel to `channels.scm`**
+until Phase 6.
 
 ## Phased roadmap
 
-| Phase | Deliverable                                                                                      | Status |
-|-------|--------------------------------------------------------------------------------------------------|--------|
-| 1     | Channel scaffold (`.guix-channel`, `packages/`, `services/`, README, CLAUDE.md, git init)        | active |
-| 2     | `uv.lock` → `(guix-hermes packages python-hermes-deps)` Guile importer; generated deps file      | next   |
-| 3     | Hand-written `(guix-hermes packages hermes)` against the generated deps; `guix build` iteration  | —      |
-| 4     | Runtime wrapper (PATH for nodejs/ripgrep/git/ffmpeg/openssh); bundle `skills/` + `plugins/`      | —      |
-| 5     | `(guix-hermes services hermes)` — system + home service, env-file secrets pattern               | —      |
-| 6     | Push to `OUH-MESHLab/guix-hermes`, wire into `~/.dotfiles/channels.scm`, deploy on curie         | —      |
+| Phase | Deliverable                                                                                      | Status   |
+|-------|--------------------------------------------------------------------------------------------------|----------|
+| 1     | Channel scaffold (`.guix-channel`, `packages/`, `services/`, README, CLAUDE.md, git init)        | done     |
+| 2     | `uv.lock` → `(guix-hermes packages python-hermes-deps)` generator; 58-package module             | **done** |
+| 3     | Hand-written `(guix-hermes packages hermes)` against the generated deps; `guix build` iteration  | next     |
+| 4     | Runtime wrapper (PATH for nodejs/ripgrep/git/ffmpeg/openssh); bundle `skills/` + `plugins/`      | —        |
+| 5     | `(guix-hermes services hermes)` — system + home service, env-file secrets pattern                | —        |
+| 6     | Push to `OUH-MESHLab/guix-hermes`, wire into `~/.dotfiles/channels.scm`, deploy on curie         | —        |
 
 ## Scope decisions (locked at planning time)
 
@@ -62,16 +63,20 @@ What we **do** reuse from the flake (as reference, not source):
 
 ```
 .guix-channel
+.upstream/                         pinned vendored copy of upstream uv.lock + pyproject.toml
 guix-hermes/packages/
   hermes.scm                       Phase 3 — top-level Hermes package
-  python-hermes-deps.scm           Phase 2 — generated from upstream uv.lock
+  python-hermes-deps.scm           Phase 2 — generated from upstream uv.lock (58 pkgs)
 guix-hermes/services/
   hermes.scm                       Phase 5 — system + home service types
+scripts/
+  closure.py                       inspect transitive closure under chosen extras
+  regen-deps.py                    uv.lock → python-hermes-deps.scm generator
 ```
 
 `python-hermes-deps.scm` is **generated** (analogous to
-`guix-openclaw/packages/node-openclaw-deps.scm`).  Regeneration script
-lives in `scripts/` (Phase 2).
+`guix-openclaw/packages/node-openclaw-deps.scm`).  Workflow lives in
+`scripts/README.md`.
 
 ## Common commands (forward-looking)
 

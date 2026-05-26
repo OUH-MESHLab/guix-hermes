@@ -10,3 +10,7 @@
 ## Guix build artefacts
 result
 result-*
+
+## Python tooling artefacts
+__pycache__/
+*.pyc
