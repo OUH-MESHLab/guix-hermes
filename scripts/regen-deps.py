@@ -68,6 +68,18 @@ PIN_DOWNGRADES = {
     # upstream Guix's install-doc phase (CHANGES → CHANGELOG.md rename).
     # Not worth a snippet workaround.
     "python-pycparser",
+    # python-certifi is just the Mozilla CA bundle.  Two versions in
+    # the closure (ours via python-requests, upstream's via the
+    # `match'-mode python-httpcore) collide at profile build time.
+    # The version difference is purely cosmetic (cert store snapshot
+    # date); accept the downgrade rather than rewrite every transitive.
+    "python-certifi",
+    # python-cffi is a low-level FFI helper used by brotlicffi and
+    # (downgraded) cryptography.  Same conflict pattern: ours via
+    # brotlicffi-mismatch (cffi 2.0.0) vs upstream's via cryptography-
+    # downgrade (cffi 1.17.1).  Accept the older variant — cffi 1.x
+    # vs 2.x is API-stable for both reverse-deps in our closure.
+    "python-cffi",
 }
 
 
@@ -95,6 +107,9 @@ WHEEL_FALLBACK = {
     # crate vendoring which is days of work for marginal benefit.
     # The manylinux wheel is glibc 2.17 ABI-compatible with Guix.
     "python-jiter",
+    # davey is Discord's Rust-based voice encryption library, pulled
+    # in via discord-py[voice].  Same Rust-vendoring problem as jiter.
+    "python-davey",
 }
 
 
@@ -292,16 +307,29 @@ def _eval_marker_manual(s: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def closure(packages: dict, extras: list[str]) -> dict[str, dict]:
+def closure(packages: dict, extras: list[str]) -> tuple[dict[str, dict], dict[str, set[str]]]:
+    """Return (visited, activated_extras).
+
+    `visited` maps normalised pypi name → lockfile package entry.
+    `activated_extras` maps normalised pypi name → set of extras that
+    were requested for that package by *something* in the walk
+    (e.g. hermes-agent declares `httpx[socks]`, so socks lands in
+    activated_extras["httpx"]).  The emitter consults this to
+    augment propagated-inputs with the right optional-dependencies."""
     hermes = packages["hermes-agent"]
     queue = list(hermes.get("dependencies", []))
     for extra in extras:
         queue.extend(hermes.get("optional-dependencies", {}).get(extra, []))
 
     visited: dict[str, dict] = {}
+    activated: dict[str, set[str]] = {}
     while queue:
         dep = queue.pop()
         name = normalize(dep["name"])
+        # Always record requested extras even if we've already visited
+        # — different callers may activate different extras.
+        for e in (dep.get("extra") or []):
+            activated.setdefault(name, set()).add(e)
         if name in visited:
             continue
         if not eval_marker(dep.get("marker", "")):
@@ -314,8 +342,36 @@ def closure(packages: dict, extras: list[str]) -> dict[str, dict]:
         visited[name] = pkg
         for d in pkg.get("dependencies", []):
             queue.append(d)
+        # Also walk into any activated extra so its deps land in the
+        # closure (and that extra's own extras propagate).
+        for e in activated.get(name, set()):
+            for d in pkg.get("optional-dependencies", {}).get(e, []):
+                queue.append(d)
     visited.pop("hermes-agent", None)
-    return visited
+    activated.pop("hermes-agent", None)
+    return visited, activated
+
+
+# Will be set by main() so the emit_* helpers can consult it without
+# threading it through every call site.
+_ACTIVATED_EXTRAS: dict[str, set[str]] = {}
+
+
+def collect_props(pkg: dict, name: str) -> list[str]:
+    """Build the propagated-inputs list for a package: its regular
+    dependencies, plus the deps of any extras activated for it by the
+    closure walk."""
+    out: list[str] = []
+    for d in pkg.get("dependencies", []):
+        if not eval_marker(d.get("marker", "")):
+            continue
+        out.append(guix_name(d["name"]))
+    for e in _ACTIVATED_EXTRAS.get(normalize(name), set()):
+        for d in pkg.get("optional-dependencies", {}).get(e, []):
+            if not eval_marker(d.get("marker", "")):
+                continue
+            out.append(guix_name(d["name"]))
+    return sorted(set(out))
 
 
 # ---------------------------------------------------------------------------
@@ -528,13 +584,63 @@ HEADER_PROLOGUE = """\
 """
 
 
-def emit_match(gname: str, upstream: dict) -> str:
-    """Re-export the existing upstream package verbatim — exact version match."""
+def emit_pure_reexport(gname: str, upstream: dict) -> str:
+    """Bare `(@ MOD GNAME)` re-export of an upstream package.  Used for
+    PIN_DOWNGRADE cases: the channel deliberately accepts upstream's
+    version *including* its propagated-inputs.  Touching those would
+    create a derivation distinct from upstream's and clash with paths
+    through other transitives that still reference the original."""
     mod = module_to_scheme(upstream["module"])
     return (
-        f";; match: {upstream['version']} (from {mod})\n"
+        f";; pure re-export ({upstream['version']} from {mod})\n"
         f"(define-public {gname}\n"
         f"  (@ {mod} {gname}))\n"
+    )
+
+
+def emit_match(gname: str, pkg: dict, upstream: dict) -> str:
+    """Match on version with upstream Guix, but inherit-rebind
+    propagated-inputs to the channel's closure-resolved transitive set.
+
+    A bare `(@ MOD GNAME)` re-export would inherit upstream's
+    propagated-inputs — those reference upstream's *other* package
+    definitions, which may have older versions of things we
+    explicitly pin elsewhere.  The result is profile-level conflicts
+    where the same package appears at two versions on different
+    propagation paths.  Inheriting and re-binding propagated-inputs
+    closes that loop without rebuilding the source.
+    """
+    mod = module_to_scheme(upstream["module"])
+    prop_names = collect_props(pkg, pkg["name"])
+    if not prop_names:
+        # No transitive deps to re-bind — pure re-export is safe.
+        return emit_pure_reexport(gname, upstream)
+    # Drop *all* upstream python-* propagated-inputs (their versions
+    # may not match our closure) and append our channel-pinned set.
+    # Non-Python upstream propagated-inputs (libsodium for pynacl,
+    # libffi for cffi, …) are preserved by the prefix filter.
+    return (
+        f";; match: {upstream['version']} (from {mod}); python-* propagated-\n"
+        f";; inputs replaced with channel closure (system-lib inputs preserved).\n"
+        f"(define-public {gname}\n"
+        f"  (let ((base (@ {mod} {gname})))\n"
+        f"    (package\n"
+        f"      (inherit base)\n"
+        f"      (propagated-inputs\n"
+        f"       (append\n"
+        f"        ;; Keep non-Python upstream propagated-inputs (libsodium,\n"
+        f"        ;; libffi, …); strip their (label _) pairs so the result\n"
+        f"        ;; is a flat list of packages that Guix can auto-label.\n"
+        f"        (map (lambda (i) (if (pair? i) (cadr i) i))\n"
+        f"             (filter (lambda (i)\n"
+        f"                       (let ((label (if (pair? i) (car i)\n"
+        f"                                        (package-name i))))\n"
+        f"                         (not (string-prefix? \"python-\" label))))\n"
+        f"                     (package-propagated-inputs base)))\n"
+        f"        (list " + " ".join(prop_names) + ")))\n"
+        f"      (arguments\n"
+        f"       (substitute-keyword-arguments (package-arguments base)\n"
+        f"         ((#:tests? was-tests? #f) #f))))))\n"
     )
 
 
@@ -565,22 +671,33 @@ def emit_mismatch(gname: str, pkg: dict, upstream: dict) -> str:
     else:
         native_block = ""
 
-    # propagated-inputs: replace with the resolved set from uv.lock —
-    # upstream Guix's set targets the older version and may miss new
-    # runtime deps (e.g. openai 1.3.5 didn't need jiter; 2.24 does).
-    prop_names: list[str] = []
-    for d in pkg.get("dependencies", []):
-        if not eval_marker(d.get("marker", "")):
-            continue
-        prop_names.append(guix_name(d["name"]))
-    prop_names = sorted(set(prop_names))
+    # propagated-inputs: rebind via modify-inputs so upstream's system-
+    # lib propagated-inputs (libsodium etc.) survive while our pinned
+    # python-* set lands.  Also covers the "uv.lock says zero deps but
+    # upstream Guix has stale python-* propagated-inputs" case (e.g.
+    # urllib3 2.5.0 propagates idna 3.10; 2.6.3 has zero runtime deps).
+    prop_names = collect_props(pkg, pkg["name"])
+    # Drop all upstream python-* propagated-inputs, keep system libs,
+    # append our channel-pinned set.  Same shape as emit_match — the
+    # only difference is that mismatch also bumps version + source.
     if prop_names:
-        prop_block = (
-            f"      (propagated-inputs\n"
-            f"       (list " + " ".join(prop_names) + "))\n"
-        )
+        appendix = "(list " + " ".join(prop_names) + ")"
     else:
-        prop_block = ""
+        appendix = "'()"
+    prop_block = (
+        f"      (propagated-inputs\n"
+        f"       (append\n"
+        f"        ;; Keep non-Python upstream propagated-inputs (libsodium,\n"
+        f"        ;; libffi, …); strip their (label _) pairs so the result\n"
+        f"        ;; is a flat list of packages that Guix can auto-label.\n"
+        f"        (map (lambda (i) (if (pair? i) (cadr i) i))\n"
+        f"             (filter (lambda (i)\n"
+        f"                       (let ((label (if (pair? i) (car i)\n"
+        f"                                        (package-name i))))\n"
+        f"                         (not (string-prefix? \"python-\" label))))\n"
+        f"                     (package-propagated-inputs base)))\n"
+        f"        " + appendix + "))\n"
+    )
 
     return (
         f";; mismatch: want {version}, upstream Guix has {upstream['version']}\n"
@@ -610,12 +727,7 @@ def emit_missing(name: str, gname: str, pkg: dict) -> str:
     url, sha_hex, kind = pick_source(pkg, prefer_wheel=(gname in WHEEL_FALLBACK))
     sha_b32 = hex_to_nix_base32(sha_hex)
 
-    prop_names: list[str] = []
-    for d in pkg.get("dependencies", []):
-        if not eval_marker(d.get("marker", "")):
-            continue
-        prop_names.append(guix_name(d["name"]))
-    prop_names = sorted(set(prop_names))
+    prop_names = collect_props(pkg, pkg["name"])
     prop_block = (
         "    (propagated-inputs\n"
         "     (list " + " ".join(prop_names) + "))\n"
@@ -739,17 +851,20 @@ def emit_package(name: str, pkg: dict, upstream: dict | None) -> str:
     if gname in PIN_DOWNGRADES and upstream and upstream["status"] != "missing":
         # Re-export upstream regardless of version drift; documented
         # exception to exact-pin policy.  See PIN_DOWNGRADES docstring.
+        # Pure re-export — do not rebind propagated-inputs (would
+        # diverge from the upstream derivation that other transitives
+        # reach by other paths).
         return (
             f";; PIN DOWNGRADE: upstream Guix {upstream['version']} "
             f"(closure asks {pkg['version']}; see PIN_DOWNGRADES)\n"
-            + emit_match(gname, upstream)
+            + emit_pure_reexport(gname, upstream)
         )
     if gname in FORCE_MISSING:
         return emit_missing(name, gname, pkg)
     if upstream is None or upstream["status"] == "missing":
         return emit_missing(name, gname, pkg)
     if upstream["status"] == "match":
-        return emit_match(gname, upstream)
+        return emit_match(gname, pkg, upstream)
     return emit_mismatch(gname, pkg, upstream)
 
 
@@ -772,7 +887,9 @@ def main() -> int:
     packages = {normalize(p["name"]): p for p in lock["package"]}
 
     extras = [e.strip() for e in args.extras.split(",") if e.strip()]
-    chosen = closure(packages, extras)
+    chosen, activated = closure(packages, extras)
+    global _ACTIVATED_EXTRAS
+    _ACTIVATED_EXTRAS = activated
 
     upstream = load_upstream_map(UPSTREAM_MAP)
 

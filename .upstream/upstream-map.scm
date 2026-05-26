@@ -11,6 +11,7 @@
   ("python-charset-normalizer" mismatch "3.4.2" (gnu packages python-xyz)) ; want 3.4.4
   ("python-croniter" mismatch "5.0.1" (gnu packages python-xyz)) ; want 6.0.0
   ("python-cryptography" mismatch "44.0.0" (gnu packages python-crypto)) ; want 46.0.7
+  ("python-davey" missing "0.1.4" #f)
   ("python-discord-py" missing "2.7.1" #f)
   ("python-distro" match "1.9.0" (gnu packages python-xyz))
   ("python-fire" mismatch "0.7.0" (gnu packages python-xyz)) ; want 0.7.1
@@ -34,6 +35,7 @@
   ("python-pydantic-core" match "2.41.5" (gnu packages python-xyz))
   ("python-pygments" mismatch "2.19.1" (gnu packages python-build)) ; want 2.19.2
   ("python-pyjwt" mismatch "2.10.1" (gnu packages python-xyz)) ; want 2.12.1
+  ("python-pynacl" match "1.5.0" (gnu packages python-crypto))
   ("python-pypng" match "0.20220715.0" (gnu packages python-xyz))
   ("python-python-dateutil" missing "2.9.0.post0" #f)
   ("python-python-dotenv" missing "1.2.1" #f)
@@ -51,6 +53,7 @@
   ("python-sniffio" match "1.3.1" (gnu packages python-xyz))
   ("python-tenacity" mismatch "9.0.0" (gnu packages python-xyz)) ; want 9.1.4
   ("python-termcolor" mismatch "2.5.0" (gnu packages python-xyz)) ; want 3.3.0
+  ("python-tornado" mismatch "6.4.2" (gnu packages python-web)) ; want 6.5.5
   ("python-tqdm" mismatch "4.67.1" (gnu packages python-xyz)) ; want 4.67.3
   ("python-typing-extensions" match "4.15.0" (gnu packages python-build))
   ("python-typing-inspection" match "0.4.2" (gnu packages python-xyz))

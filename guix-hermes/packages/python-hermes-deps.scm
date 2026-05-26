@@ -19,13 +19,13 @@
 ;;;     python3 scripts/regen-deps.py --extras=messaging
 ;;;
 ;;; Source of truth: .upstream/uv.lock at upstream tag v2026.5.16.
-;;; Closure: 58 Python packages (core + extras: messaging).
+;;; Closure: 61 Python packages (core + extras: messaging).
 ;;;
 ;;; Strategy per package (driven by .upstream/upstream-map.scm):
-;;;   - match     (18): re-export upstream Guix definition
-;;;   - mismatch  (29): inherit upstream, bump version + source
-;;;   - missing   (9): full from-scratch definition
-;;;   - downgrade (2): re-export upstream despite version drift
+;;;   - match     (19): re-export upstream Guix definition
+;;;   - mismatch  (28): inherit upstream, bump version + source
+;;;   - missing   (10): full from-scratch definition
+;;;   - downgrade (4): re-export upstream despite version drift
 ;;;                         (documented exception, see scripts/regen-deps.py)
 ;;;
 ;;; Code:
@@ -54,7 +54,7 @@
   #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages time))
 
-;; match: 2.6.1 (from (gnu packages python-web))
+;; pure re-export (2.6.1 from (gnu packages python-web))
 (define-public python-aiohappyeyeballs
   (@ (gnu packages python-web) python-aiohappyeyeballs))
 
@@ -74,22 +74,68 @@
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
       (propagated-inputs
-       (list python-aiohappyeyeballs python-aiosignal python-attrs python-frozenlist python-multidict python-propcache python-yarl))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-aiohappyeyeballs python-aiosignal python-attrs python-frozenlist python-multidict python-propcache python-yarl)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
-;; match: 1.4.0 (from (gnu packages python-web))
+;; match: 1.4.0 (from (gnu packages python-web)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
 (define-public python-aiosignal
-  (@ (gnu packages python-web) python-aiosignal))
+  (let ((base (@ (gnu packages python-web) python-aiosignal)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-frozenlist python-typing-extensions)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
 
-;; match: 0.7.0 (from (gnu packages python-xyz))
+;; pure re-export (0.7.0 from (gnu packages python-xyz))
 (define-public python-annotated-types
   (@ (gnu packages python-xyz) python-annotated-types))
 
-;; match: 4.12.1 (from (gnu packages python-xyz))
+;; match: 4.12.1 (from (gnu packages python-xyz)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
 (define-public python-anyio
-  (@ (gnu packages python-xyz) python-anyio))
+  (let ((base (@ (gnu packages python-xyz) python-anyio)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-idna python-typing-extensions)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
 
 ;; mismatch: want 25.4.0, upstream Guix has 25.3.0
 (define-public python-attrs
@@ -106,6 +152,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-hatchling python-hatch-vcs python-hatch-fancy-pypi-readme)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -123,50 +181,30 @@
          (sha256
           (base32 "0732blw0kh284l67jssw98kylxr3i5ddk9hlck87lc3qc9cmq3f2"))))
       (propagated-inputs
-       (list python-cffi))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-cffi)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
-;; mismatch: want 2026.2.25, upstream Guix has 2025.06.15
+;; PIN DOWNGRADE: upstream Guix 2025.06.15 (closure asks 2026.2.25; see PIN_DOWNGRADES)
+;; pure re-export (2025.06.15 from (gnu packages python-crypto))
 (define-public python-certifi
-  (let ((base (@ (gnu packages python-crypto) python-certifi)))
-    (package
-      (inherit base)
-      (version "2026.2.25")
-      (source
-       (origin
-         (method url-fetch)
-         (uri "https://files.pythonhosted.org/packages/af/2d/7bf41579a8986e348fa033a31cdd0e4121114f6bce2457e8876010b092dd/certifi-2026.2.25.tar.gz")
-         (sha256
-          (base32 "19zv1glf5im976d340xx2hxx8b6iq99r25kj6i6q3skqxrfap1z8"))))
-      (native-inputs
-       (modify-inputs (package-native-inputs base)
-         (append python-setuptools)))
-      (arguments
-       (substitute-keyword-arguments (package-arguments base)
-         ((#:tests? was-tests? #f) #f))))))
+  (@ (gnu packages python-crypto) python-certifi))
 
-;; mismatch: want 2.0.0, upstream Guix has 1.17.1
+;; PIN DOWNGRADE: upstream Guix 1.17.1 (closure asks 2.0.0; see PIN_DOWNGRADES)
+;; pure re-export (1.17.1 from (gnu packages libffi))
 (define-public python-cffi
-  (let ((base (@ (gnu packages libffi) python-cffi)))
-    (package
-      (inherit base)
-      (version "2.0.0")
-      (source
-       (origin
-         (method url-fetch)
-         (uri "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz")
-         (sha256
-          (base32 "0aambnn8q1jcyshfs002lapi90nypn6h9bh1c3iry4r1j28bbla4"))))
-      (native-inputs
-       (modify-inputs (package-native-inputs base)
-         (append python-setuptools)))
-      (propagated-inputs
-       (list python-pycparser))
-      (arguments
-       (substitute-keyword-arguments (package-arguments base)
-         ((#:tests? was-tests? #f) #f))))))
+  (@ (gnu packages libffi) python-cffi))
 
 ;; mismatch: want 3.4.4, upstream Guix has 3.4.2
 (define-public python-charset-normalizer
@@ -183,6 +221,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -203,15 +253,56 @@
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
       (propagated-inputs
-       (list python-python-dateutil python-pytz))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-python-dateutil python-pytz)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
 ;; PIN DOWNGRADE: upstream Guix 44.0.0 (closure asks 46.0.7; see PIN_DOWNGRADES)
-;; match: 44.0.0 (from (gnu packages python-crypto))
+;; pure re-export (44.0.0 from (gnu packages python-crypto))
 (define-public python-cryptography
   (@ (gnu packages python-crypto) python-cryptography))
+
+;; missing from upstream Guix — full hand-defined package
+(define-public python-davey
+  (package
+    (name "python-davey")
+    (version "0.1.4")
+    ;; binary wheel (Rust extension) — see WHEEL_FALLBACK in scripts/regen-deps.py
+    (source
+     (origin
+       (method url-fetch)
+       (uri "https://files.pythonhosted.org/packages/b3/7b/db98b09d160e3d2f750486fcf90ee8d244cf582ab10d88b2016a6972348c/davey-0.1.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl")
+       (sha256
+        (base32 "0h6b7a0iys00zm3dw6zxv9cba1h8vxniyjws0bdb9xwxpprjy22n"))
+       ))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'unpack
+            (lambda* (#:key source #:allow-other-keys)
+              (mkdir-p "dist")
+              (copy-file source
+                         (string-append "dist/" (basename source)))))
+          (delete 'build)
+          (delete 'validate-runpath))))
+    (home-page "https://pypi.org/project/davey/")
+    (synopsis "davey (auto-generated; see Phase 3)")
+    (description "Auto-generated package definition for @code{davey} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
+    (license license:expat)))
 
 ;; missing from upstream Guix — full hand-defined package
 (define-public python-discord-py
@@ -230,13 +321,13 @@
     (native-inputs
      (list python-setuptools))
     (propagated-inputs
-     (list python-aiohttp))
+     (list python-aiohttp python-davey python-pynacl))
     (home-page "https://pypi.org/project/discord-py/")
     (synopsis "discord-py (auto-generated; see Phase 3)")
     (description "Auto-generated package definition for @code{discord-py} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
     (license license:expat)))
 
-;; match: 1.9.0 (from (gnu packages python-xyz))
+;; pure re-export (1.9.0 from (gnu packages python-xyz))
 (define-public python-distro
   (@ (gnu packages python-xyz) python-distro))
 
@@ -256,26 +347,72 @@
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
       (propagated-inputs
-       (list python-termcolor))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-termcolor)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
-;; match: 1.8.0 (from (gnu packages python-web))
+;; pure re-export (1.8.0 from (gnu packages python-web))
 (define-public python-frozenlist
   (@ (gnu packages python-web) python-frozenlist))
 
-;; match: 0.16.0 (from (gnu packages python-web))
+;; pure re-export (0.16.0 from (gnu packages python-web))
 (define-public python-h11
   (@ (gnu packages python-web) python-h11))
 
-;; match: 1.0.9 (from (gnu packages python-web))
+;; match: 1.0.9 (from (gnu packages python-web)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
 (define-public python-httpcore
-  (@ (gnu packages python-web) python-httpcore))
+  (let ((base (@ (gnu packages python-web) python-httpcore)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-certifi python-h11)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
 
-;; match: 0.28.1 (from (gnu packages python-web))
+;; match: 0.28.1 (from (gnu packages python-web)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
 (define-public python-httpx
-  (@ (gnu packages python-web) python-httpx))
+  (let ((base (@ (gnu packages python-web) python-httpx)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-anyio python-certifi python-httpcore python-idna python-socksio)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
 
 ;; mismatch: want 3.11, upstream Guix has 3.10
 (define-public python-idna
@@ -292,6 +429,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-flit-core)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -312,7 +461,17 @@
        (modify-inputs (package-native-inputs base)
          (append python-flit-core)))
       (propagated-inputs
-       (list python-markupsafe))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-markupsafe)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -364,16 +523,26 @@
        (modify-inputs (package-native-inputs base)
          (append python-flit-core)))
       (propagated-inputs
-       (list python-mdurl))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-mdurl)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
-;; match: 3.0.3 (from (gnu packages python-xyz))
+;; pure re-export (3.0.3 from (gnu packages python-xyz))
 (define-public python-markupsafe
   (@ (gnu packages python-xyz) python-markupsafe))
 
-;; match: 0.1.2 (from (gnu packages python-xyz))
+;; pure re-export (0.1.2 from (gnu packages python-xyz))
 (define-public python-mdurl
   (@ (gnu packages python-xyz) python-mdurl))
 
@@ -392,6 +561,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -412,7 +593,17 @@
        (modify-inputs (package-native-inputs base)
          (append python-hatchling python-hatch-fancy-pypi-readme)))
       (propagated-inputs
-       (list python-anyio python-distro python-httpx python-jiter python-pydantic python-sniffio python-tqdm python-typing-extensions))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-anyio python-distro python-httpx python-jiter python-pydantic python-sniffio python-tqdm python-typing-extensions)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -433,7 +624,17 @@
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
       (propagated-inputs
-       (list python-wcwidth))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-wcwidth)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -453,6 +654,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools python-cython gcc-toolchain python-expandvars)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -472,22 +685,70 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
 ;; PIN DOWNGRADE: upstream Guix 2.22 (closure asks 3.0; see PIN_DOWNGRADES)
-;; match: 2.22 (from (gnu packages python-xyz))
+;; pure re-export (2.22 from (gnu packages python-xyz))
 (define-public python-pycparser
   (@ (gnu packages python-xyz) python-pycparser))
 
-;; match: 2.12.5 (from (gnu packages python-xyz))
+;; match: 2.12.5 (from (gnu packages python-xyz)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
 (define-public python-pydantic
-  (@ (gnu packages python-xyz) python-pydantic))
+  (let ((base (@ (gnu packages python-xyz) python-pydantic)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-annotated-types python-pydantic-core python-typing-extensions python-typing-inspection)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
 
-;; match: 2.41.5 (from (gnu packages python-xyz))
+;; match: 2.41.5 (from (gnu packages python-xyz)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
 (define-public python-pydantic-core
-  (@ (gnu packages python-xyz) python-pydantic-core))
+  (let ((base (@ (gnu packages python-xyz) python-pydantic-core)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-typing-extensions)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
 
 ;; mismatch: want 2.19.2, upstream Guix has 2.19.1
 (define-public python-pygments
@@ -504,6 +765,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-hatchling)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -523,11 +796,45 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-cryptography)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
-;; match: 0.20220715.0 (from (gnu packages python-xyz))
+;; match: 1.5.0 (from (gnu packages python-crypto)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
+(define-public python-pynacl
+  (let ((base (@ (gnu packages python-crypto) python-pynacl)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-cffi)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
+
+;; pure re-export (0.20220715.0 from (gnu packages python-xyz))
 (define-public python-pypng
   (@ (gnu packages python-xyz) python-pypng))
 
@@ -597,7 +904,7 @@
     (native-inputs
      (list python-hatchling))
     (propagated-inputs
-     (list python-httpx))
+     (list python-httpx python-tornado))
     (home-page "https://pypi.org/project/python-telegram-bot/")
     (synopsis "python-telegram-bot (auto-generated; see Phase 3)")
     (description "Auto-generated package definition for @code{python-telegram-bot} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
@@ -615,6 +922,18 @@
          (uri "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz")
          (sha256
           (base32 "1hw1drs4cdc1cp3j92dk93h46dj5zg3hj66n3b10k8j9pcyrw2rn"))))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -634,6 +953,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools python-cython)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -654,7 +985,17 @@
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
       (propagated-inputs
-       (list python-pypng python-typing-extensions))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-pypng python-typing-extensions)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -675,7 +1016,17 @@
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
       (propagated-inputs
-       (list python-certifi python-charset-normalizer python-idna python-urllib3))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-certifi python-charset-normalizer python-idna python-urllib3)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -696,7 +1047,17 @@
        (modify-inputs (package-native-inputs base)
          (append python-poetry-core)))
       (propagated-inputs
-       (list python-markdown-it-py python-pygments))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-markdown-it-py python-pygments)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -750,7 +1111,7 @@
     (description "Auto-generated package definition for @code{ruamel-yaml-clib} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
     (license license:expat)))
 
-;; match: 1.17.0 (from (gnu packages python-build))
+;; pure re-export (1.17.0 from (gnu packages python-build))
 (define-public python-six
   (@ (gnu packages python-build) python-six))
 
@@ -803,7 +1164,7 @@
     (description "Auto-generated package definition for @code{slack-sdk} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
     (license license:expat)))
 
-;; match: 1.3.1 (from (gnu packages python-xyz))
+;; pure re-export (1.3.1 from (gnu packages python-xyz))
 (define-public python-sniffio
   (@ (gnu packages python-xyz) python-sniffio))
 
@@ -822,6 +1183,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools python-setuptools-scm)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -841,6 +1214,49 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-hatchling python-hatch-vcs)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
+
+;; mismatch: want 6.5.5, upstream Guix has 6.4.2
+(define-public python-tornado
+  (let ((base (@ (gnu packages python-web) python-tornado)))
+    (package
+      (inherit base)
+      (version "6.5.5")
+      (source
+       (origin
+         (method url-fetch)
+         (uri "https://files.pythonhosted.org/packages/f8/f1/3173dfa4a18db4a9b03e5d55325559dab51ee653763bb8745a75af491286/tornado-6.5.5.tar.gz")
+         (sha256
+          (base32 "1s9hilgbj4gr0wprd6vpjqpvgiknxlb595861ksz3mqvm4z8yaqr"))))
+      (native-inputs
+       (modify-inputs (package-native-inputs base)
+         (append python-setuptools)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -860,17 +1276,47 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools python-setuptools-scm)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
-;; match: 4.15.0 (from (gnu packages python-build))
+;; pure re-export (4.15.0 from (gnu packages python-build))
 (define-public python-typing-extensions
   (@ (gnu packages python-build) python-typing-extensions))
 
-;; match: 0.4.2 (from (gnu packages python-xyz))
+;; match: 0.4.2 (from (gnu packages python-xyz)); python-* propagated-
+;; inputs replaced with channel closure (system-lib inputs preserved).
 (define-public python-typing-inspection
-  (@ (gnu packages python-xyz) python-typing-inspection))
+  (let ((base (@ (gnu packages python-xyz) python-typing-inspection)))
+    (package
+      (inherit base)
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-typing-extensions)))
+      (arguments
+       (substitute-keyword-arguments (package-arguments base)
+         ((#:tests? was-tests? #f) #f))))))
 
 ;; mismatch: want 2.6.3, upstream Guix has 2.5.0
 (define-public python-urllib3
@@ -887,6 +1333,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-hatchling python-hatch-vcs python-setuptools-scm)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -906,6 +1364,18 @@
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-hatchling)))
+      (propagated-inputs
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        '()))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
@@ -926,7 +1396,17 @@
        (modify-inputs (package-native-inputs base)
          (append python-setuptools python-cython gcc-toolchain python-expandvars)))
       (propagated-inputs
-       (list python-idna python-multidict python-propcache))
+       (append
+        ;; Keep non-Python upstream propagated-inputs (libsodium,
+        ;; libffi, …); strip their (label _) pairs so the result
+        ;; is a flat list of packages that Guix can auto-label.
+        (map (lambda (i) (if (pair? i) (cadr i) i))
+             (filter (lambda (i)
+                       (let ((label (if (pair? i) (car i)
+                                        (package-name i))))
+                         (not (string-prefix? "python-" label))))
+                     (package-propagated-inputs base)))
+        (list python-idna python-multidict python-propcache)))
       (arguments
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))

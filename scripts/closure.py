@@ -101,9 +101,12 @@ def closure(packages: dict, roots: list, extras: list[str]) -> dict:
         queue.extend(hermes.get("optional-dependencies", {}).get(extra, []))
 
     visited: dict[str, dict] = {}
+    activated: dict[str, set] = {}
     while queue:
         dep = queue.pop()
         name = normalize(dep["name"])
+        for e in (dep.get("extra") or []):
+            activated.setdefault(name, set()).add(e)
         if name in visited:
             continue
         if not eval_marker(dep.get("marker", "")):
@@ -114,9 +117,12 @@ def closure(packages: dict, roots: list, extras: list[str]) -> dict:
             continue
         pkg = packages[name]
         visited[name] = pkg
-        # Walk this package's own deps (regular only, not optional).
         for d in pkg.get("dependencies", []):
             queue.append(d)
+        # Walk activated extras too, so their deps land in the closure.
+        for e in activated.get(name, set()):
+            for d in pkg.get("optional-dependencies", {}).get(e, []):
+                queue.append(d)
     return visited
 
 
