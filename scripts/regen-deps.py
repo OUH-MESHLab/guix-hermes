@@ -80,6 +80,13 @@ PIN_DOWNGRADES = {
     # downgrade (cffi 1.17.1).  Accept the older variant — cffi 1.x
     # vs 2.x is API-stable for both reverse-deps in our closure.
     "python-cffi",
+    # python-pytz is a timezone database wrapper.  Patch-version
+    # diffs (2025.1 vs 2025.2) only update Olson tzdata snapshots;
+    # the diff doesn't move any timezone our closure relies on.
+    # python-icalendar (in curie's email profile) propagates 2025.1;
+    # our croniter pins 2025.2.  Accept the downgrade rather than
+    # cascade-rewrite icalendar.
+    "python-pytz",
 }
 
 

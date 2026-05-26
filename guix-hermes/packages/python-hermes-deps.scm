@@ -23,9 +23,9 @@
 ;;;
 ;;; Strategy per package (driven by .upstream/upstream-map.data):
 ;;;   - match     (19): re-export upstream Guix definition
-;;;   - mismatch  (28): inherit upstream, bump version + source
+;;;   - mismatch  (27): inherit upstream, bump version + source
 ;;;   - missing   (10): full from-scratch definition
-;;;   - downgrade (4): re-export upstream despite version drift
+;;;   - downgrade (5): re-export upstream despite version drift
 ;;;                         (documented exception, see scripts/regen-deps.py)
 ;;;
 ;;; Code:
@@ -910,33 +910,10 @@
     (description "Auto-generated package definition for @code{python-telegram-bot} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
     (license license:expat)))
 
-;; mismatch: want 2025.2, upstream Guix has 2025.1
+;; PIN DOWNGRADE: upstream Guix 2025.1 (closure asks 2025.2; see PIN_DOWNGRADES)
+;; pure re-export (2025.1 from (gnu packages time))
 (define-public python-pytz
-  (let ((base (@ (gnu packages time) python-pytz)))
-    (package
-      (inherit base)
-      (version "2025.2")
-      (source
-       (origin
-         (method url-fetch)
-         (uri "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz")
-         (sha256
-          (base32 "1hw1drs4cdc1cp3j92dk93h46dj5zg3hj66n3b10k8j9pcyrw2rn"))))
-      (propagated-inputs
-       (append
-        ;; Keep non-Python upstream propagated-inputs (libsodium,
-        ;; libffi, …); strip their (label _) pairs so the result
-        ;; is a flat list of packages that Guix can auto-label.
-        (map (lambda (i) (if (pair? i) (cadr i) i))
-             (filter (lambda (i)
-                       (let ((label (if (pair? i) (car i)
-                                        (package-name i))))
-                         (not (string-prefix? "python-" label))))
-                     (package-propagated-inputs base)))
-        '()))
-      (arguments
-       (substitute-keyword-arguments (package-arguments base)
-         ((#:tests? was-tests? #f) #f))))))
+  (@ (gnu packages time) python-pytz))
 
 ;; mismatch: want 6.0.3, upstream Guix has 6.0.2
 (define-public python-pyyaml
