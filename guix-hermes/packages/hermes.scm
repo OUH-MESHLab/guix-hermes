@@ -75,7 +75,20 @@
              "0535aab709872130fca6118256315164704d92a7427be116984e6e0e3997/"
              "hermes_agent-" version ".tar.gz"))
        (sha256
-        (base32 "0jysbq4jjzj473db7mxih75ha61rh3hj7772nkm0bcwhb4918b4g"))))
+        (base32 "0jysbq4jjzj473db7mxih75ha61rh3hj7772nkm0bcwhb4918b4g"))
+       (modules '((guix build utils)))
+       (snippet
+        ;; Relax pyyaml's exact-equality pin so the Guix sanity-check
+        ;; phase passes when the dep lands at the channel-pinned
+        ;; (downgraded) 6.0.2 instead of upstream's 6.0.3.  pyyaml
+        ;; patch-version diffs touch only the bundled LibYAML
+        ;; snapshot, not the Python API.  Upstream pins exactly for
+        ;; supply-chain reasons; this exception is documented in
+        ;; PIN_DOWNGRADES (see scripts/regen-deps.py).
+        #~(begin
+            (substitute* "pyproject.toml"
+              (("^[[:space:]]*\"pyyaml==6\\.0\\.3\",")
+               "  \"pyyaml>=6.0,<7\","))))))
     (build-system pyproject-build-system)
     (arguments
      (list
