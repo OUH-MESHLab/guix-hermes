@@ -10,19 +10,26 @@ A **Guix package channel** for [Hermes Agent](https://github.com/NousResearch/he
 
 ## Status
 
-**Phase 2 of 6 complete.**  Generated `python-hermes-deps.scm` (58 packages
-covering core + `[messaging]` extras) loads under `guix repl`.  Nothing
-yet attempts `guix build`.  **Do not add this channel to `channels.scm`**
-until Phase 6.
+**Phase 3 of 6 complete.**  `guix build -L . hermes-agent` succeeds.
+`hermes --help` from the resulting profile prints the full command
+palette.  Nothing wraps the binary with runtime tools yet (Phase 4).
+**Do not add this channel to `channels.scm`** until Phase 6.
+
+Build classification (58 deps + 1 top-level): 18 re-exports of pristine
+upstream Guix packages, 29 inherit-and-bump overrides, 9 from-scratch
+definitions, 2 documented exceptions to exact-pin policy (cryptography
+44.0.0 instead of 46.0.7 to dodge Rust crate vendoring; pycparser
+2.22 instead of 3.0 to preserve upstream install-doc phase), and 1
+wheel-fallback (jiter manylinux binary).
 
 ## Phased roadmap
 
 | Phase | Deliverable                                                                                      | Status   |
 |-------|--------------------------------------------------------------------------------------------------|----------|
 | 1     | Channel scaffold (`.guix-channel`, `packages/`, `services/`, README, CLAUDE.md, git init)        | done     |
-| 2     | `uv.lock` → `(guix-hermes packages python-hermes-deps)` generator; 58-package module             | **done** |
-| 3     | Hand-written `(guix-hermes packages hermes)` against the generated deps; `guix build` iteration  | next     |
-| 4     | Runtime wrapper (PATH for nodejs/ripgrep/git/ffmpeg/openssh); bundle `skills/` + `plugins/`      | —        |
+| 2     | `uv.lock` → `(guix-hermes packages python-hermes-deps)` generator; 58-package module             | done     |
+| 3     | Hand-written `(guix-hermes packages hermes)` against the generated deps; `guix build` iteration  | **done** |
+| 4     | Runtime wrapper (PATH for nodejs/ripgrep/git/ffmpeg/openssh); bundle `skills/` + `plugins/`      | next     |
 | 5     | `(guix-hermes services hermes)` — system + home service, env-file secrets pattern                | —        |
 | 6     | Push to `OUH-MESHLab/guix-hermes`, wire into `~/.dotfiles/channels.scm`, deploy on curie         | —        |
 
