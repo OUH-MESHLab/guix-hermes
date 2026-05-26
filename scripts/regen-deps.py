@@ -103,6 +103,14 @@ WHEEL_FALLBACK = {
 # CLI needs the [cli] extra which pulls click — out of our closure).
 SKIP_SANITY_CHECK: set[str] = {
     "python-python-dotenv",
+    # ruamel-yaml-clib is a Cython companion to ruamel.yaml; the bare
+    # module can't be imported without its parent package on sys.path.
+    "python-ruamel-yaml-clib",
+    # slack-sdk's legacy `slack/__init__.py` alias module unconditionally
+    # `import aiohttp` from RTMClient — aiohttp is an optional dep,
+    # always present in our closure via [messaging] but not a direct
+    # propagated-input.
+    "python-slack-sdk",
 }
 
 

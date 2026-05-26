@@ -737,7 +737,12 @@
         (base32 "000640h0sjzd6id5ag3df254l4c2wja20lbjby498spg8f6crr26"))
        ))
     (build-system pyproject-build-system)
-    (arguments (list #:tests? #f))
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'sanity-check))))
     (native-inputs
      (list python-setuptools))
     (home-page "https://pypi.org/project/ruamel-yaml-clib/")
@@ -785,7 +790,12 @@
         (base32 "1l1zxh4vygnp6ppdkdl4a4ximxkv96chh4gmynmr1g2iq8xk65d2"))
        ))
     (build-system pyproject-build-system)
-    (arguments (list #:tests? #f))
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'sanity-check))))
     (native-inputs
      (list python-setuptools))
     (home-page "https://pypi.org/project/slack-sdk/")

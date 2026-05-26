@@ -40,7 +40,8 @@
   #:use-module (guix download)
   #:use-module (guix gexp)
   #:use-module ((guix licenses) #:prefix license:)
-  #:use-module (guix packages))
+  #:use-module (guix packages)
+  #:use-module (gnu packages python-build))   ; python-setuptools
 
 (define-public hermes-agent
   (package
@@ -61,6 +62,8 @@
       ;; Tests pull dev-only extras (debugpy, pytest-split, pytest-xdist,
       ;; ty, ruff) that are deliberately out of scope.
       #:tests? #f))
+    (native-inputs
+     (list python-setuptools))
     (propagated-inputs
      ;; Order mirrors upstream pyproject.toml [project.dependencies] +
      ;; [project.optional-dependencies.messaging].  Win32-only tzdata
