@@ -1,22 +1,22 @@
-;;; probe-upstream.scm — read tab-separated "pypi-name TAB version" pairs
+;;; probe-upstream.guile — read tab-separated "pypi-name TAB version" pairs
 ;;; from stdin, emit a Scheme alist mapping each to its status against
 ;;; upstream Guix.  Status is one of: match, mismatch, missing.
 ;;;
 ;;; Usage:
-;;;   guix repl scripts/probe-upstream.scm < /tmp/want.tsv \
+;;;   guix repl scripts/probe-upstream.guile < /tmp/want.tsv \
 ;;;     > .upstream/upstream-map.data
 ;;;
-;;; The define-module header is purely cosmetic — it lets Guix's
-;;; channel-compile step recognise this file as a module rather than
-;;; barfing on the bare (use-modules ...) at top level when scanning
-;;; the channel checkout.  Running the file via `guix repl ...` still
-;;; executes the body at load time, which is the desired behaviour.
+;;; The non-.scm extension is intentional: Guix's channel scanner picks
+;;; up every *.scm file under the channel root and evaluates its top-
+;;; level forms during `guix pull`.  This file's body calls (read-line)
+;;; from stdin and would block forever when invoked from a tty.  Naming
+;;; the file `.guile` keeps it out of the channel module set while
+;;; still letting `guix repl <path>` and `guile <path>` execute it.
 
-(define-module (scripts probe-upstream)
-  #:use-module (gnu packages)
-  #:use-module (guix packages)
-  #:use-module (guix utils)
-  #:use-module (ice-9 rdelim))
+(use-modules (gnu packages)
+             (guix packages)
+             (guix utils)
+             (ice-9 rdelim))
 
 (define (pypi->guix name)
   (string-append "python-" name))

@@ -559,7 +559,7 @@ HEADER_PROLOGUE = """\
 ;;; GENERATED FILE — DO NOT EDIT BY HAND.
 ;;;
 ;;; Regenerate with:
-;;;   guix repl scripts/probe-upstream.scm < /tmp/want.tsv \\
+;;;   guix repl scripts/probe-upstream.guile < /tmp/want.tsv \\
 ;;;     > .upstream/upstream-map.data
 ;;;   guix shell python python-packaging curl gzip tar -- \\
 ;;;     python3 scripts/regen-deps.py --extras=messaging
