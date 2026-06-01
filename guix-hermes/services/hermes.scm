@@ -222,7 +222,10 @@
       (start #~(lambda _
                  ((make-forkexec-constructor
                    (cons* #$(file-append pkg "/bin/hermes")
-                          "gateway"
+                          ;; `gateway' is a command GROUP; `run' is the
+                          ;; foreground entry point.  Bare `gateway' only
+                          ;; works via an implicit default and is fragile.
+                          "gateway" "run"
                           (list #$@extra-args))
                    #:user #$user
                    #:group #$group
@@ -280,7 +283,10 @@ itself (that file lives in the world-readable Guix store).")))
       (start #~(lambda _
                  ((make-forkexec-constructor
                    (cons* #$(file-append pkg "/bin/hermes")
-                          "gateway"
+                          ;; `gateway' is a command GROUP; `run' is the
+                          ;; foreground entry point.  Bare `gateway' only
+                          ;; works via an implicit default and is fragile.
+                          "gateway" "run"
                           (list #$@extra-args))
                    #:log-file (string-append
                                (getenv "HOME") "/.hermes/hermes.log")
