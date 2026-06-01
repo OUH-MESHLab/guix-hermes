@@ -1,0 +1,34 @@
+;;; hermes-pack-manifest.scm --- OCI image contents for the Hermes containers
+;;;
+;;; Consumed by scripts/build-hermes-image.sh, which runs:
+;;;
+;;;   guix time-machine -C <channels-lock.scm> -- \
+;;;     pack -f docker -S /bin=bin -S /etc/ssl=etc/ssl \
+;;;          --entry-point=bin/hermes -m pack/hermes-pack-manifest.scm
+;;;
+;;; The resulting image is loaded into rootless Podman and tagged
+;;; localhost/hermes:<guix-hermes-commit>, then run as the three
+;;; hermes-{tutor,household,ops} gateway containers on edison
+;;; (terminal.backend=local — the container itself is each tier's sandbox).
+;;;
+;;; Two packages, on purpose:
+;;;
+;;;   hermes-agent  The gateway plus its bundled skills/plugins.  Its
+;;;                 wrap-runtime phase already prepends node, ripgrep, git,
+;;;                 ffmpeg and openssh onto PATH, so those tools ride along in
+;;;                 the closure automatically — no need to list them here.  The
+;;;                 `hermes' launcher is a wrap-program shell script whose
+;;;                 shebang is an absolute /gnu/store bash path, so it runs as
+;;;                 the image entry-point without any /bin/sh present.
+;;;
+;;;   nss-certs     The CA bundle.  It is NOT in hermes-agent's closure, and a
+;;;                 bare pack image has no /etc/ssl, so without it every
+;;;                 outbound HTTPS call (the Mattermost transport and the LLM
+;;;                 API) fails TLS verification *silently*.  The
+;;;                 `-S /etc/ssl=etc/ssl' symlink in the build command gives the
+;;;                 bundle a stable path, so each container can export
+;;;                 SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt.
+
+(specifications->manifest
+ (list "hermes-agent"
+       "nss-certs"))
