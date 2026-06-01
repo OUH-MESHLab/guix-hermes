@@ -6,8 +6,10 @@ package and service definitions for
 self-improving AI agent that creates skills from experience, persists across
 sessions, and runs anywhere from a $5 VPS to a GPU cluster.
 
-**Status:** early scaffold (Phase 1 of 6 — see `CLAUDE.md`).  The channel
-currently exports no packages.  Don't add it to your `channels.scm` yet.
+**Status:** complete (all 6 phases — see `CLAUDE.md`).  The channel is live and
+already wired into `~/.dotfiles/channels.scm`; `hermes-agent` v0.14.0 builds.
+A reproducible OCI image for container deployment is built from
+`pack/hermes-pack-manifest.scm` via `scripts/build-hermes-image.sh`.
 
 ---
 

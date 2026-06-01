@@ -50,6 +50,26 @@ wheel-fallback (jiter manylinux binary).
   `home-hermes-service-type` (home).
 - **Repo location:** `OUH-MESHLab/guix-hermes` (matches `guix-openclaw`).
 
+## Container deployment (entelequia home fleet)
+
+For the tiered family-assistant deployment on edison, Hermes runs **not** as the
+native `hermes-service-type` but as **rootless Podman containers built from a
+reproducible `guix pack` image**:
+
+```
+guix time-machine -C <channels-lock.scm> -- \
+  pack -f docker -S /bin=bin -S /etc/ssl=etc/ssl \
+       --entry-point=bin/hermes -m pack/hermes-pack-manifest.scm
+```
+
+(see `pack/hermes-pack-manifest.scm` + `scripts/build-hermes-image.sh`).  The
+image is loaded into Podman and tagged `localhost/hermes:<channel-commit>`; one
+container per tier (own `HERMES_HOME` volume + per-tier env-file + netns) with
+`terminal.backend=local`, so the container itself is each tier's sandbox.
+Per-tier separation is per-container, **not** per-service-instance — the native
+service-type is left untouched.  `nss-certs` is added to the pack because it is
+**not** in `hermes-agent`'s closure; without it outbound TLS fails silently.
+
 ## Why the upstream `flake.nix` doesn't transpile
 
 Upstream ships a working Nix flake using `uv2nix` (a Nix library that
