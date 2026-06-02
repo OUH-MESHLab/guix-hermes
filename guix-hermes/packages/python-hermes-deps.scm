@@ -279,12 +279,13 @@
     (name "python-davey")
     (version "0.1.4")
     ;; binary wheel (Rust extension) — see WHEEL_FALLBACK in scripts/regen-deps.py
+    ;; cpNNN wheel must match this channel's CPython (currently 3.12) — see jiter.
     (source
      (origin
        (method url-fetch)
-       (uri "https://files.pythonhosted.org/packages/b3/7b/db98b09d160e3d2f750486fcf90ee8d244cf582ab10d88b2016a6972348c/davey-0.1.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl")
+       (uri "https://files.pythonhosted.org/packages/68/aa/c250f75cb6a4213e1f01eb965180f30ff9dda834d11a4a2e5895c96989fe/davey-0.1.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl")
        (sha256
-        (base32 "0h6b7a0iys00zm3dw6zxv9cba1h8vxniyjws0bdb9xwxpprjy22n"))
+        (base32 "021cx6h9mm9vd6043gwdc5xh7d279vbm104085d876giixfn9vwd"))
        ))
     (build-system pyproject-build-system)
     (arguments
@@ -482,12 +483,15 @@
     (name "python-jiter")
     (version "0.13.0")
     ;; binary wheel (Rust extension) — see WHEEL_FALLBACK in scripts/regen-deps.py
+    ;; MUST be the cpNNN wheel matching this channel's CPython (currently 3.12):
+    ;; the .so is ABI-tagged jiter.cpython-3NN-*.so, so a cp311 wheel under a 3.12
+    ;; interpreter imports as "No module named 'jiter.jiter'".
     (source
      (origin
        (method url-fetch)
-       (uri "https://files.pythonhosted.org/packages/6e/09/9fe4c159358176f82d4390407a03f506a8659ed13ca3ac93a843402acecf/jiter-0.13.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl")
+       (uri "https://files.pythonhosted.org/packages/f8/4c/09b93e30e984a187bc8aaa3510e1ec8dcbdcd71ca05d2f56aac0492453aa/jiter-0.13.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl")
        (sha256
-        (base32 "062h1gjaa2lsmym48y0iq7308czjn8gf3a1n7baz61aydl947ar4"))
+        (base32 "14sdpdsrgzlwyfx0fy9ih90qixsbzk5svjyq8ln6mwk6gvcagaxx"))
        ))
     (build-system pyproject-build-system)
     (arguments
