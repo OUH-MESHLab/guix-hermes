@@ -19,12 +19,12 @@
 ;;;     python3 scripts/regen-deps.py --extras=messaging
 ;;;
 ;;; Source of truth: .upstream/uv.lock at upstream tag v2026.5.16.
-;;; Closure: 61 Python packages (core + extras: messaging).
+;;; Closure: 62 Python packages (core + extras: messaging, pty).
 ;;;
 ;;; Strategy per package (driven by .upstream/upstream-map.data):
 ;;;   - match     (19): re-export upstream Guix definition
 ;;;   - mismatch  (26): inherit upstream, bump version + source
-;;;   - missing   (10): full from-scratch definition
+;;;   - missing   (11): full from-scratch definition
 ;;;   - downgrade (6): re-export upstream despite version drift
 ;;;                         (documented exception, see scripts/regen-deps.py)
 ;;;
@@ -58,18 +58,18 @@
 (define-public python-aiohappyeyeballs
   (@ (gnu packages python-web) python-aiohappyeyeballs))
 
-;; mismatch: want 3.13.4, upstream Guix has 3.11.18
+;; mismatch: want 3.13.3, upstream Guix has 3.11.18
 (define-public python-aiohttp
   (let ((base (@ (gnu packages python-web) python-aiohttp)))
     (package
       (inherit base)
-      (version "3.13.4")
+      (version "3.13.3")
       (source
        (origin
          (method url-fetch)
-         (uri "https://files.pythonhosted.org/packages/45/4a/064321452809dae953c1ed6e017504e72551a26b6f5708a5a80e4bf556ff/aiohttp-3.13.4.tar.gz")
+         (uri "https://files.pythonhosted.org/packages/50/42/32cf8e7704ceb4481406eb87161349abb46a57fee3f008ba9cb610968646/aiohttp-3.13.3.tar.gz")
          (sha256
-          (base32 "0f5xmrm1nk19k37lwcf0g8zmhw75w5lr1m5m5868k1v0qq4nsynr"))))
+          (base32 "124zpgyxm16ccxq94ykz7dfhr6ybn8cjhjjgmvdg50ip7pjfwjd9"))))
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-setuptools)))
@@ -279,7 +279,6 @@
     (name "python-davey")
     (version "0.1.4")
     ;; binary wheel (Rust extension) — see WHEEL_FALLBACK in scripts/regen-deps.py
-    ;; cpNNN wheel must match this channel's CPython (currently 3.12) — see jiter.
     (source
      (origin
        (method url-fetch)
@@ -415,18 +414,18 @@
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
-;; mismatch: want 3.11, upstream Guix has 3.10
+;; mismatch: want 3.15, upstream Guix has 3.10
 (define-public python-idna
   (let ((base (@ (gnu packages python-xyz) python-idna)))
     (package
       (inherit base)
-      (version "3.11")
+      (version "3.15")
       (source
        (origin
          (method url-fetch)
-         (uri "https://files.pythonhosted.org/packages/6f/6d/0703ccc57f3a7233505399edb88de3cbd678da106337b9fcde432b65ed60/idna-3.11.tar.gz")
+         (uri "https://files.pythonhosted.org/packages/82/77/7b3966d0b9d1d31a36ddf1746926a11dface89a83409bf1483f0237aa758/idna-3.15.tar.gz")
          (sha256
-          (base32 "00lrcbd0l69r7yjn9px74d88r3jdcmrsmhijn0ghrv84kk6aypbr"))))
+          (base32 "1p2znvysp572n791d4il9mpqi3k16yj7s1aym69713skx93295na"))))
       (native-inputs
        (modify-inputs (package-native-inputs base)
          (append python-flit-core)))
@@ -483,9 +482,6 @@
     (name "python-jiter")
     (version "0.13.0")
     ;; binary wheel (Rust extension) — see WHEEL_FALLBACK in scripts/regen-deps.py
-    ;; MUST be the cpNNN wheel matching this channel's CPython (currently 3.12):
-    ;; the .so is ABI-tagged jiter.cpython-3NN-*.so, so a cp311 wheel under a 3.12
-    ;; interpreter imports as "No module named 'jiter.jiter'".
     (source
      (origin
        (method url-fetch)
@@ -705,54 +701,87 @@
        (substitute-keyword-arguments (package-arguments base)
          ((#:tests? was-tests? #f) #f))))))
 
+;; missing from upstream Guix — full hand-defined package
+(define-public python-ptyprocess
+  (package
+    (name "python-ptyprocess")
+    (version "0.7.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri "https://files.pythonhosted.org/packages/20/e5/16ff212c1e452235a90aeb09066144d0c5a6a8c0834397e03f5224495c4e/ptyprocess-0.7.0.tar.gz")
+       (sha256
+        (base32 "081j893x6c9qrfszp8swfqlpvk8agh1jc32y9140pvnf90xhlpaw"))
+       ))
+    (build-system pyproject-build-system)
+    (arguments (list #:tests? #f))
+    (native-inputs
+     (list python-flit-core))
+    (home-page "https://pypi.org/project/ptyprocess/")
+    (synopsis "ptyprocess (auto-generated; see Phase 3)")
+    (description "Auto-generated package definition for @code{ptyprocess} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
+    (license license:expat)))
+
 ;; PIN DOWNGRADE: upstream Guix 2.22 (closure asks 3.0; see PIN_DOWNGRADES)
 ;; pure re-export (2.22 from (gnu packages python-xyz))
 (define-public python-pycparser
   (@ (gnu packages python-xyz) python-pycparser))
 
-;; match: 2.12.5 (from (gnu packages python-xyz)); python-* propagated-
-;; inputs replaced with channel closure (system-lib inputs preserved).
+;; missing from upstream Guix — full hand-defined package
 (define-public python-pydantic
-  (let ((base (@ (gnu packages python-xyz) python-pydantic)))
-    (package
-      (inherit base)
-      (propagated-inputs
-       (append
-        ;; Keep non-Python upstream propagated-inputs (libsodium,
-        ;; libffi, …); strip their (label _) pairs so the result
-        ;; is a flat list of packages that Guix can auto-label.
-        (map (lambda (i) (if (pair? i) (cadr i) i))
-             (filter (lambda (i)
-                       (let ((label (if (pair? i) (car i)
-                                        (package-name i))))
-                         (not (string-prefix? "python-" label))))
-                     (package-propagated-inputs base)))
-        (list python-annotated-types python-pydantic-core python-typing-extensions python-typing-inspection)))
-      (arguments
-       (substitute-keyword-arguments (package-arguments base)
-         ((#:tests? was-tests? #f) #f))))))
+  (package
+    (name "python-pydantic")
+    (version "2.13.4")
+    (source
+     (origin
+       (method url-fetch)
+       (uri "https://files.pythonhosted.org/packages/18/a5/b60d21ac674192f8ab0ba4e9fd860690f9b4a6e51ca5df118733b487d8d6/pydantic-2.13.4.tar.gz")
+       (sha256
+        (base32 "1xly174bw09r8izym10fz4sw9dzkyfbc3mffxvpv3a6sgasmc1y4"))
+       ))
+    (build-system pyproject-build-system)
+    (arguments (list #:tests? #f))
+    (native-inputs
+     (list python-hatchling python-hatch-fancy-pypi-readme))
+    (propagated-inputs
+     (list python-annotated-types python-pydantic-core python-typing-extensions python-typing-inspection))
+    (home-page "https://pypi.org/project/pydantic/")
+    (synopsis "pydantic (auto-generated; see Phase 3)")
+    (description "Auto-generated package definition for @code{pydantic} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
+    (license license:expat)))
 
-;; match: 2.41.5 (from (gnu packages python-xyz)); python-* propagated-
-;; inputs replaced with channel closure (system-lib inputs preserved).
+;; missing from upstream Guix — full hand-defined package
 (define-public python-pydantic-core
-  (let ((base (@ (gnu packages python-xyz) python-pydantic-core)))
-    (package
-      (inherit base)
-      (propagated-inputs
-       (append
-        ;; Keep non-Python upstream propagated-inputs (libsodium,
-        ;; libffi, …); strip their (label _) pairs so the result
-        ;; is a flat list of packages that Guix can auto-label.
-        (map (lambda (i) (if (pair? i) (cadr i) i))
-             (filter (lambda (i)
-                       (let ((label (if (pair? i) (car i)
-                                        (package-name i))))
-                         (not (string-prefix? "python-" label))))
-                     (package-propagated-inputs base)))
-        (list python-typing-extensions)))
-      (arguments
-       (substitute-keyword-arguments (package-arguments base)
-         ((#:tests? was-tests? #f) #f))))))
+  (package
+    (name "python-pydantic-core")
+    (version "2.46.4")
+    ;; binary wheel (Rust extension) — see WHEEL_FALLBACK in scripts/regen-deps.py
+    (source
+     (origin
+       (method url-fetch)
+       (uri "https://files.pythonhosted.org/packages/5f/97/2aab507d3d00ca626e8e57c1eac6a79e4e5fbcc63eb99733ff55d1717f65/pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl")
+       (sha256
+        (base32 "1kkwhgzxqbqca270mds1cdnb045mzrshp2na3mlb24jbn50rav4j"))
+       ))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'unpack
+            (lambda* (#:key source #:allow-other-keys)
+              (mkdir-p "dist")
+              (copy-file source
+                         (string-append "dist/" (basename source)))))
+          (delete 'build)
+          (delete 'validate-runpath))))
+    (propagated-inputs
+     (list python-typing-extensions))
+    (home-page "https://pypi.org/project/pydantic-core/")
+    (synopsis "pydantic-core (auto-generated; see Phase 3)")
+    (description "Auto-generated package definition for @code{pydantic-core} from upstream @file{uv.lock}.  Synopsis, description and license will be filled in during Phase 3.")
+    (license license:expat)))
 
 ;; mismatch: want 2.19.2, upstream Guix has 2.19.1
 (define-public python-pygments
@@ -869,13 +898,13 @@
 (define-public python-python-dotenv
   (package
     (name "python-python-dotenv")
-    (version "1.2.1")
+    (version "1.2.2")
     (source
      (origin
        (method url-fetch)
-       (uri "https://files.pythonhosted.org/packages/f0/26/19cadc79a718c5edbec86fd4919a6b6d3f681039a2f6d66d14be94e75fb9/python_dotenv-1.2.1.tar.gz")
+       (uri "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz")
        (sha256
-        (base32 "1mkalcdfq3i65mnsyfng9vyz155akh5fdw2ajmk0vaqngs4pwrj2"))
+        (base32 "1wwwg7gasqmnv5y2hb3w1155c8nai6zzih8x5hn0ifnpzf8ildrc"))
        ))
     (build-system pyproject-build-system)
     (arguments

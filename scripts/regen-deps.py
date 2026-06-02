@@ -45,7 +45,25 @@ OUTPUT = REPO_ROOT / "guix-hermes" / "packages" / "python-hermes-deps.scm"
 # version (typically: major build-system change).  Treat as "missing"
 # even though `guix show` finds an older copy — we synthesise from
 # scratch so the build-backend probe picks up the right native-inputs.
-FORCE_MISSING: set[str] = set()
+FORCE_MISSING: set[str] = {
+    # Build the EXACT pinned pydantic (2.13.4) instead of re-exporting
+    # upstream Guix's older 2.12.5: hermes-agent pins pydantic==2.13.4
+    # and the Guix sanity-check enforces it.  pydantic itself is pure
+    # Python; its only compiled dep, pydantic-core, comes via the cp312
+    # WHEEL_FALLBACK below — so no Rust crate-vendoring is needed.
+    "python-pydantic",
+    # pydantic 2.13.4 requires pydantic-core==2.46.4, but upstream Guix
+    # ships the 2.12.5-matched older core.  Force a full def so we build
+    # the exact 2.46.4 (a Rust PyO3 ext) via its cp312 wheel (below).
+    "python-pydantic-core",
+}
+
+
+# CPython ABI tag of THIS channel's interpreter.  Prebuilt manylinux
+# wheels (WHEEL_FALLBACK packages) must match it, else their compiled
+# extension (.cpython-XYZ-*.so) is unimportable under our python.  Bump
+# this in lockstep with the channel's python (currently 3.12).
+CHANNEL_CPYTHON_TAG = "cp312"
 
 
 # Documented exceptions to exact-pin policy: packages where building
@@ -122,6 +140,10 @@ WHEEL_FALLBACK = {
     # davey is Discord's Rust-based voice encryption library, pulled
     # in via discord-py[voice].  Same Rust-vendoring problem as jiter.
     "python-davey",
+    # pydantic-core 2.46.4 (PyO3/Rust) — needed exactly by pydantic
+    # 2.13.4 (FORCE_MISSING above).  Use the cp312 manylinux wheel
+    # rather than vendor its crate tree.
+    "python-pydantic-core",
 }
 
 
@@ -509,19 +531,26 @@ def module_to_scheme(module: tuple) -> str:
 def pick_source(pkg: dict, prefer_wheel: bool = False) -> tuple[str, str, str]:
     """Return (url, sha256_hex, kind) where kind is 'sdist' or 'wheel'.
 
-    With prefer_wheel=True we look for a Linux cp311 manylinux wheel
-    first — used for Rust-extension packages we don't want to source-
-    build.  Falls back to sdist if no suitable wheel is found.
+    With prefer_wheel=True we look for a Linux manylinux wheel whose
+    CPython ABI tag matches this channel's interpreter — used for
+    Rust-extension packages we don't want to source-build.  Falls back
+    to sdist if no suitable wheel is found.
+
+    CRITICAL: the ABI tag MUST match the channel's CPython
+    (CHANNEL_CPYTHON_TAG, currently "cp312").  A cp311 wheel installs
+    jiter.cpython-311-*.so, which a 3.12 interpreter cannot import
+    ("No module named 'jiter.jiter'"), silently breaking every
+    OpenRouter call.
     """
     sdist = pkg.get("sdist")
     wheels = pkg.get("wheels", [])
 
     if prefer_wheel:
-        # Prefer manylinux cp311 x86_64 wheels.
+        # Prefer manylinux <CHANNEL_CPYTHON_TAG> x86_64 wheels.
+        tag = f"{CHANNEL_CPYTHON_TAG}-{CHANNEL_CPYTHON_TAG}-manylinux"
         for w in wheels:
             url = w["url"]
-            if ("cp311-cp311-manylinux" in url
-                    and ("x86_64" in url or "amd64" in url)):
+            if (tag in url and ("x86_64" in url or "amd64" in url)):
                 return url, w["hash"].removeprefix("sha256:"), "wheel"
         # Fall through to sdist if no matching wheel.
 

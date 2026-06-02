@@ -66,16 +66,16 @@
 (define-public hermes-agent
   (package
     (name "hermes-agent")
-    (version "0.14.0")
+    (version "0.15.2")
     (source
      (origin
        (method url-fetch)
        (uri (string-append
-             "https://files.pythonhosted.org/packages/78/ac/"
-             "0535aab709872130fca6118256315164704d92a7427be116984e6e0e3997/"
+             "https://files.pythonhosted.org/packages/21/c9/"
+             "df2a8712a5924c7b2370bad0b544eb21a7bf7c1ec0ff4f1e0a2d93b5dfd7/"
              "hermes_agent-" version ".tar.gz"))
        (sha256
-        (base32 "0jysbq4jjzj473db7mxih75ha61rh3hj7772nkm0bcwhb4918b4g"))
+        (base32 "1vx3vhl3xsh6q5570s1v4p03yjdwc3k65y045xy7yhymszq94y77"))
        (modules '((guix build utils)))
        (snippet
         ;; Relax pyyaml's exact-equality pin so the Guix sanity-check
