@@ -21,7 +21,7 @@ set -eu
 # Channel lock that pins guix-hermes (and everything else).  Override with
 # CHANNELS_LOCK if your checkout lives elsewhere.
 CHANNELS_LOCK="${CHANNELS_LOCK:-$HOME/.dotfiles/channels-lock.scm}"
-MANIFEST="${MANIFEST:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/pack/hermes-pack-manifest.scm}"
+MANIFEST="${MANIFEST:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/pack/hermes-pack-manifest.guile}"
 
 [ -f "$CHANNELS_LOCK" ] || { echo "!! channels lock not found: $CHANNELS_LOCK" >&2; exit 1; }
 [ -f "$MANIFEST" ]      || { echo "!! pack manifest not found: $MANIFEST" >&2; exit 1; }

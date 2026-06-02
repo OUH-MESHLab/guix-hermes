@@ -4,7 +4,7 @@
 ;;;
 ;;;   guix time-machine -C <channels-lock.scm> -- \
 ;;;     pack -f docker -S /bin=bin -S /etc/ssl=etc/ssl \
-;;;          --entry-point=bin/hermes -m pack/hermes-pack-manifest.scm
+;;;          --entry-point=bin/hermes -m pack/hermes-pack-manifest.guile
 ;;;
 ;;; The resulting image is loaded into rootless Podman and tagged
 ;;; localhost/hermes:<guix-hermes-commit>, then run as the three
