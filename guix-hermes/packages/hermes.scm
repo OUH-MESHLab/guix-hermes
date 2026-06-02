@@ -200,7 +200,12 @@
       python-python-telegram-bot
       python-qrcode
       python-slack-bolt
-      python-slack-sdk))
+      python-slack-sdk
+      ;; MCP extra — MCP servers over streamable-HTTP (e.g. the NextCloud
+      ;; sidecar consumed by hermes-household).  Transitively pulls its
+      ;; client/server closure (httpx-sse, jsonschema, pydantic-settings,
+      ;; starlette, uvicorn, …) from python-hermes-deps.
+      python-mcp))
     (home-page "https://github.com/NousResearch/hermes-agent")
     (synopsis "Self-improving AI agent — terminal-first, multi-platform")
     (description
@@ -211,7 +216,7 @@ single gateway process and supports model providers such as OpenAI,
 Anthropic, OpenRouter, and self-hosted endpoints.
 
 This package ships the core CLI plus the messaging adapters (Telegram,
-Discord, Slack).  Optional extras for voice (faster-whisper, local STT),
-Matrix bridges, Honcho, MCP and ACP are deliberately omitted; add them
-out of band if needed.")
+Discord, Slack) and the MCP client/server stack (streamable-HTTP transport).
+Optional extras for voice (faster-whisper, local STT), Matrix bridges, Honcho
+and ACP are deliberately omitted; add them out of band if needed.")
     (license license:expat)))

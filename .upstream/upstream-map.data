@@ -60,4 +60,16 @@
   ("python-urllib3" mismatch "2.5.0" (gnu packages python-web)) ; want 2.6.3
   ("python-wcwidth" mismatch "0.2.13" (gnu packages python-xyz)) ; want 0.6.0
   ("python-yarl" mismatch "1.18.3" (gnu packages python-web)) ; want 1.22.0
+  ("python-click" match "8.3.1" (gnu packages python-xyz))
+  ("python-httpx-sse" match "0.4.3" (gnu packages python-web))
+  ("python-jsonschema" mismatch "4.23.0" (gnu packages python-xyz)) ; want 4.26.0
+  ("python-jsonschema-specifications" mismatch "2024.10.1" (gnu packages python-xyz)) ; want 2025.9.1
+  ("python-mcp" mismatch "1.25.0" (gnu packages python-web)) ; want 1.26.0
+  ("python-pydantic-settings" mismatch "2.12.0" (gnu packages python-xyz)) ; want 2.13.1
+  ("python-python-multipart" missing "0.0.27" #f)
+  ("python-referencing" mismatch "0.35.1" (gnu packages python-xyz)) ; want 0.37.0
+  ("python-rpds-py" mismatch "0.10.6" (gnu packages python-xyz)) ; want 0.30.0
+  ("python-sse-starlette" mismatch "3.1.2" (gnu packages python-web)) ; want 3.3.2
+  ("python-starlette" mismatch "0.49.1" (gnu packages python-web)) ; want 0.52.1
+  ("python-uvicorn" mismatch "0.40.0" (gnu packages python-web)) ; want 0.41.0
 ))

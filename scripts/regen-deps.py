@@ -56,6 +56,12 @@ FORCE_MISSING: set[str] = {
     # ships the 2.12.5-matched older core.  Force a full def so we build
     # the exact 2.46.4 (a Rust PyO3 ext) via its cp312 wheel (below).
     "python-pydantic-core",
+    # rpds-py 0.30.0 is a Rust (PyO3) extension.  Upstream Guix has 0.10.6;
+    # inheriting + bumping to 0.30.0 fails (the vendored crate tree is stale:
+    # rpds-py 0.30.0 needs archery ^1.2.2, the inherited recipe vendors 1.2.1).
+    # Force a full def + cp312 wheel rather than re-vendor.  Pulled in via
+    # mcp -> jsonschema -> referencing -> rpds-py.
+    "python-rpds-py",
 }
 
 
@@ -144,6 +150,27 @@ WHEEL_FALLBACK = {
     # 2.13.4 (FORCE_MISSING above).  Use the cp312 manylinux wheel
     # rather than vendor its crate tree.
     "python-pydantic-core",
+    # rpds-py 0.30.0 (PyO3/Rust) — same hermetic-cargo-vendoring problem;
+    # use the cp312 manylinux wheel.  (FORCE_MISSING above forces the def.)
+    "python-rpds-py",
+}
+
+
+# Per-package propagated-input overrides.  When uv.lock under-declares a
+# package's deps (so collect_props() comes back empty/wrong) but the package
+# still needs a channel-pinned python-* at build + runtime, pin the correct
+# channel set here.  This both (a) takes emit_match off the pure-re-export
+# path — a pure re-export inherits upstream's transitive python-*, which
+# collides at profile-assembly with our rebuild of the same package — and
+# (b) gives the rebuild the deps its `import` sanity-check needs.  Keyed by
+# Guix name; values are channel-package symbols spliced into propagated-inputs.
+PROP_OVERRIDES: dict[str, list[str]] = {
+    # httpx-sse declares no runtime deps on PyPI (uv.lock lists none), yet
+    # httpx_sse/_api.py does `import httpx`.  With no httpx the rebuild's
+    # sanity-check fails; with UPSTREAM's httpx (pure-re-export default) it
+    # collides with our channel python-httpx in the hermes-agent profile.
+    # Pin the channel python-httpx: builds clean AND single httpx in-profile.
+    "python-httpx-sse": ["python-httpx"],
 }
 
 
@@ -652,7 +679,7 @@ def emit_match(gname: str, pkg: dict, upstream: dict) -> str:
     closes that loop without rebuilding the source.
     """
     mod = module_to_scheme(upstream["module"])
-    prop_names = collect_props(pkg, pkg["name"])
+    prop_names = PROP_OVERRIDES.get(gname) or collect_props(pkg, pkg["name"])
     if not prop_names:
         # No transitive deps to re-bind — pure re-export is safe.
         return emit_pure_reexport(gname, upstream)
